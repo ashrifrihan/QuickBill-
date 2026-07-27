@@ -4,7 +4,8 @@
  */
 
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../../../store/authStore';
 import { useTheme, useResponsive } from '../../hooks/useResponsive';
 import { Button, Card, ErrorBanner, Field, Screen, Spacer, Txt } from '../../components/common';
@@ -20,6 +21,7 @@ export function LoginScreen() {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState(false);
 
   const usernameError = touched && !username.trim() ? 'Enter your username.' : undefined;
@@ -72,12 +74,27 @@ export function LoginScreen() {
               label="Password"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              secureTextEntry={!showPassword}
               autoComplete="current-password"
               placeholder="••••••"
               returnKeyType="go"
               onSubmitEditing={handleSubmit}
               error={passwordError}
+              rightElement={
+                <Pressable
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                  style={{ padding: 4, justifyContent: 'center', alignItems: 'center' }}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={theme.colors.textMuted}
+                  />
+                </Pressable>
+              }
             />
 
             <Spacer size={theme.spacing.lg} />

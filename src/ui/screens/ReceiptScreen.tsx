@@ -49,7 +49,9 @@ export function ReceiptScreen() {
   const currency = settings.currency;
   const { print, printing, error, clearError } = useCheckout();
 
-  const [printNote, setPrintNote] = useState<string | null>(null);
+  /** Outcome of the last print attempt. Tone matters: a success message
+   *  rendered in warning colours reads as a failure. */
+  const [printNote, setPrintNote] = useState<{ text: string; ok: boolean } | null>(null);
 
   /**
    * Loads the bill plus the current photo for each line.
@@ -99,9 +101,27 @@ export function ReceiptScreen() {
   const handlePrint = async () => {
     setPrintNote(null);
     const result = await print(invoice);
-    if (result?.usedFallback) {
-      setPrintNote('The thermal printer was unavailable, so the bill was shared as a PDF.');
+
+    // `print` returns null only when it already set `error`, which is rendered
+    // as a banner above.
+    if (!result) return;
+
+    if (!result.shared) {
+      // The PDF exists but never reached the customer. Say so and point at the
+      // path that still works, instead of leaving a button that looks dead.
+      setPrintNote({
+        ok: false,
+        text: `${result.shareError ?? 'The bill was not sent.'} The PDF was created — try "Print on a paper printer", which can also save it.`,
+      });
+      return;
     }
+
+    if (result.usedFallback) {
+      setPrintNote({ ok: true, text: 'The thermal printer was unavailable, so the bill was shared as a PDF.' });
+      return;
+    }
+
+    setPrintNote({ ok: true, text: 'Bill sent to the customer.' });
   };
 
   /**
@@ -115,7 +135,7 @@ export function ReceiptScreen() {
       const shop = settingsService.toShopInfo(settings);
       await new PdfPrintStrategy().printToSystemPrinter(invoice, shop);
     } catch (error) {
-      setPrintNote(toAppError(error).userMessage);
+      setPrintNote({ ok: false, text: toAppError(error).userMessage });
     }
   };
 
@@ -148,9 +168,16 @@ export function ReceiptScreen() {
       {printNote ? (
         <>
           <Card style={{ backgroundColor: theme.colors.surfaceAlt }}>
-            <Txt variant="label" color="warning">
-              {printNote}
-            </Txt>
+            <Row gap={8}>
+              <Ionicons
+                name={printNote.ok ? 'checkmark-circle' : 'alert-circle'}
+                size={18}
+                color={printNote.ok ? theme.colors.success : theme.colors.warning}
+              />
+              <Txt variant="label" color={printNote.ok ? 'success' : 'warning'} style={{ flex: 1 }}>
+                {printNote.text}
+              </Txt>
+            </Row>
           </Card>
           <Spacer size={theme.spacing.md} />
         </>

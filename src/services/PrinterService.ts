@@ -10,6 +10,7 @@
 
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 import { Invoice } from '../domain/Invoice';
 import { PrinterError } from '../errors/AppError';
 import { logger } from '../errors/logger';
@@ -23,6 +24,15 @@ export interface PrintResult {
   uri?: string;
   /** True when the requested strategy failed and PDF handled it instead. */
   usedFallback: boolean;
+  /**
+   * True only when the bill actually reached the customer — the share sheet
+   * opened, or bytes went to a printer. False means the file exists but
+   * nothing was handed over, which the UI must say out loud rather than
+   * silently reporting success.
+   */
+  shared: boolean;
+  /** Why `shared` is false, when it is worth telling the user. */
+  shareError?: string;
 }
 
 export interface IPrintStrategy {
@@ -65,6 +75,32 @@ function pdfFailureMessage(error: unknown): string {
     : 'Could not create the PDF. The sale is still saved.';
 }
 
+/**
+ * Writes the PDF bytes into a directory this app owns, and returns that URI.
+ *
+ * expo-print saves to `<cache>/Print/<uuid>.pdf`, which sits outside the
+ * scoped sandbox that expo-sharing and expo-file-system are permitted to read
+ * — sharing it directly fails with "Not allowed to read file under given URL".
+ * Copying is not an option either, because the copy would have to READ that
+ * same forbidden path. Writing the base64 we already hold sidesteps both.
+ *
+ * Also gives the attachment a meaningful name instead of a UUID.
+ */
+async function writeToOwnStorage(base64: string, invoiceNo: string): Promise<string> {
+  const directory = new FileSystem.Directory(FileSystem.Paths.document, 'bills');
+  if (!directory.exists) directory.create({ intermediates: true });
+
+  const safeName = `Bill-${invoiceNo.replace(/[^A-Za-z0-9._-]/g, '-')}.pdf`;
+  const file = new FileSystem.File(directory, safeName);
+
+  // Overwrite any earlier copy of the same bill rather than accumulating files.
+  if (file.exists) file.delete();
+  file.create();
+  file.write(base64, { encoding: 'base64' });
+
+  return file.uri;
+}
+
 export class PdfPrintStrategy implements IPrintStrategy {
   readonly id = 'pdf' as const;
   readonly label = 'PDF / Share';
@@ -81,8 +117,15 @@ export class PdfPrintStrategy implements IPrintStrategy {
 
     try {
       const html = buildReceiptHtml(invoice, shop);
-      const result = await Print.printToFileAsync({ html, base64: false });
-      uri = result.uri;
+      // `base64: true` matters. expo-print writes its file to a cache path that
+      // belongs to expo-print, NOT to this app's scoped sandbox — expo-sharing
+      // and expo-file-system both refuse to read it ("Not allowed to read file
+      // under given URL"). Taking the bytes back through JS lets us re-write
+      // the PDF into a directory we do own, which is shareable.
+      const result = await Print.printToFileAsync({ html, base64: true });
+      uri = result.base64
+        ? await writeToOwnStorage(result.base64, invoice.invoiceNo)
+        : result.uri;
     } catch (error) {
       throw new PrinterError('Failed to render the receipt to PDF', {
         userMessage: pdfFailureMessage(error),
@@ -95,6 +138,12 @@ export class PdfPrintStrategy implements IPrintStrategy {
     // prettier filename, but expo-file-system's scoped API rejects reads
     // outside the app's own sandbox — and a cosmetic name is not worth an
     // entire extra failure mode on the one action that produces the bill.
+    // Whether the share sheet actually opened is reported back, NOT swallowed.
+    // Both branches below used to log and then return success, so if sharing
+    // was unavailable the button simply appeared to do nothing.
+    let shared = false;
+    let shareError: string | undefined;
+
     try {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
@@ -102,16 +151,19 @@ export class PdfPrintStrategy implements IPrintStrategy {
           dialogTitle: `Bill ${invoice.invoiceNo}`,
           UTI: 'com.adobe.pdf',
         });
+        shared = true;
       } else {
+        shareError = 'No app on this device can receive a PDF.';
         logger.warn('Sharing unavailable; PDF saved to disk only', { uri });
       }
     } catch (error) {
-      // The PDF exists. Dismissing the share sheet is a normal user action on
-      // Android and must not be reported as a failure.
-      logger.info('Share sheet closed without sharing', { uri, reason: String(error) });
+      // The PDF exists either way, so this is never fatal — but it is also not
+      // success, and the caller needs to be able to tell the user.
+      shareError = 'The share sheet could not be opened.';
+      logger.warn('Sharing the receipt failed', { uri, reason: String(error) });
     }
 
-    return { strategy: 'pdf', uri, usedFallback: false };
+    return { strategy: 'pdf', uri, shared, shareError, usedFallback: false };
   }
 
   /** Opens the OS print dialog for a paper (non-thermal) printer. */

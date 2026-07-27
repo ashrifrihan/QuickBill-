@@ -1,5 +1,8 @@
 /**
- * Add / edit a product (guide §8.3).
+ * Add / edit a product (guide §8.3) — Professional POS workflow.
+ *
+ * When arriving from a barcode scan, the barcode field is LOCKED as read-only
+ * with a verified badge. The cashier cannot accidentally modify the scanned code.
  *
  * Validation is layered (guide §9.2, defence in depth):
  *   1. Zod + React Hook Form here, for instant field-level feedback
@@ -9,17 +12,20 @@
  * A screen that forgot to validate still cannot corrupt the database.
  */
 
-import React, { useEffect, useState } from 'react';
-import { Image, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Image, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import * as ImagePicker from 'expo-image-picker';
+import { CameraView } from 'expo-camera';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { productService } from '../../../services/ProductService';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { useTheme } from '../../hooks/useResponsive';
+import { useScanner } from '../../hooks/useScanner';
 import {
   Button,
   Card,
@@ -33,6 +39,7 @@ import {
 } from '../../components/common';
 import { parseMoney } from '../../../domain/Money';
 import { toAppError, ValidationError } from '../../../errors/AppError';
+import { SUPPORTED_BARCODE_TYPES } from '../../../config/constants';
 import type { ProductsStackParamList } from '../../../navigation/types';
 
 type Nav = NativeStackNavigationProp<ProductsStackParamList>;
@@ -76,23 +83,27 @@ export function ProductFormScreen() {
   const defaultTaxRate = useSettingsStore((s) => s.settings.taxRate);
 
   const isEdit = params?.productId !== undefined;
+  // Barcode is locked when it came from a scan (not user-typed)
+  const barcodeFromScan = params?.barcode ?? '';
+  const [barcodeIsLocked, setBarcodeIsLocked] = useState(!!barcodeFromScan);
+
   const [loading, setLoading] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [showScannerModal, setShowScannerModal] = useState(false);
 
   const {
     control,
     handleSubmit,
     reset,
+    setValue,
     setError,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      // Pre-filled when arriving from a "not found" scan — the whole point of
-      // that flow is that the cashier doesn't retype the code.
-      barcode: params?.barcode ?? '',
+      barcode: barcodeFromScan,
       name: '',
       category: '',
       purchasePrice: '',
@@ -120,6 +131,8 @@ export function ProductFormScreen() {
           stockQty: String(product.stockQty),
         });
         setImageUri(product.imageUri);
+        // Editing an existing product: barcode is always locked
+        setBarcodeIsLocked(true);
       } catch (error) {
         if (!cancelled) setSubmitError(toAppError(error).userMessage);
       } finally {
@@ -131,6 +144,12 @@ export function ProductFormScreen() {
       cancelled = true;
     };
   }, [isEdit, params?.productId, reset]);
+
+  const handleScanBarcode = useCallback((barcode: string) => {
+    setValue('barcode', barcode);
+    setBarcodeIsLocked(true);
+    setShowScannerModal(false);
+  }, [setValue]);
 
   const pickImage = async () => {
     try {
@@ -190,7 +209,7 @@ export function ProductFormScreen() {
   if (loading) {
     return (
       <Screen>
-        <LoadingState label="Loading product…" />
+        <LoadingState label="Loading product..." />
       </Screen>
     );
   }
@@ -225,12 +244,72 @@ export function ProductFormScreen() {
         </>
       ) : null}
 
+      {/* Scan Barcode CTA Button — opens camera scanner */}
+      {!barcodeIsLocked && !isEdit ? (
+        <>
+          <Pressable
+            onPress={() => setShowScannerModal(true)}
+            style={({ pressed }) => [
+              styles.scanButton,
+              {
+                backgroundColor: theme.colors.primary,
+                borderRadius: 14,
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <Ionicons name="scan" size={22} color={theme.colors.primaryText} />
+            <Txt variant="label" style={{ color: theme.colors.primaryText, marginLeft: 10, fontSize: 16 }}>
+              Scan Barcode
+            </Txt>
+          </Pressable>
+          <Spacer size={theme.spacing.lg} />
+        </>
+      ) : null}
+
+      {/* Barcode Card */}
       <Card>
-        {field('barcode', 'Barcode', {
-          placeholder: '1000000000001',
-          autoCapitalize: 'none',
-          keyboardType: 'default',
-        })}
+        <Controller
+          control={control}
+          name="barcode"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <Field
+              label="Barcode"
+              value={value ?? ''}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              error={errors.barcode?.message}
+              placeholder="1000000000001"
+              autoCapitalize="none"
+              keyboardType="default"
+              readOnly={barcodeIsLocked}
+              verified={barcodeIsLocked && !!value}
+              rightElement={
+                barcodeIsLocked ? (
+                  <Pressable
+                    onPress={() => {
+                      setShowScannerModal(true);
+                    }}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 10,
+                      backgroundColor: `${theme.colors.primary}15`,
+                      opacity: pressed ? 0.7 : 1,
+                    })}
+                  >
+                    <Ionicons name="scan-outline" size={16} color={theme.colors.primary} />
+                    <Txt variant="caption" style={{ color: theme.colors.primary, marginLeft: 4, fontWeight: '600' }}>
+                      Scan Again
+                    </Txt>
+                  </Pressable>
+                ) : undefined
+              }
+            />
+          )}
+        />
         <Spacer size={theme.spacing.md} />
         {field('name', 'Product name', { placeholder: 'Tea 100g' })}
         <Spacer size={theme.spacing.md} />
@@ -307,6 +386,163 @@ export function ProductFormScreen() {
       <Spacer size={theme.spacing.sm} />
       <Button title="Cancel" variant="ghost" onPress={() => navigation.goBack()} />
       <Spacer size={theme.spacing.xl} />
+
+      {/* Scanner Modal for barcode capture */}
+      <BarcodeScannerModal
+        visible={showScannerModal}
+        onClose={() => setShowScannerModal(false)}
+        onScanned={handleScanBarcode}
+      />
     </Screen>
   );
 }
+
+/** Full-screen modal camera scanner for capturing a barcode on the product form */
+function BarcodeScannerModal({
+  visible,
+  onClose,
+  onScanned,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onScanned: (barcode: string) => void;
+}) {
+  const theme = useTheme();
+
+  const handleCapture = useCallback(
+    (barcode: string) => {
+      onScanned(barcode);
+    },
+    [onScanned],
+  );
+
+  const scanner = useScanner({
+    lookup: false,
+    onScanned: handleCapture,
+    autoStart: visible,
+  });
+
+  // Resume scanner when modal opens
+  useEffect(() => {
+    if (visible) {
+      scanner.resume();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  const frameColor =
+    scanner.phase === 'found' ? theme.colors.success : '#FFFFFF';
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
+      <View style={styles.flex}>
+        {visible ? (
+          <CameraView
+            style={StyleSheet.absoluteFill}
+            facing="back"
+            enableTorch={scanner.torchOn}
+            onBarcodeScanned={
+              scanner.isActive ? (result) => void scanner.handleBarcodeScanned(result) : undefined
+            }
+            barcodeScannerSettings={{ barcodeTypes: [...SUPPORTED_BARCODE_TYPES] }}
+          />
+        ) : null}
+
+        <View style={styles.modalOverlay} pointerEvents="box-none">
+          {/* Top bar with close and torch */}
+          <View style={styles.modalTopBar}>
+            <Pressable
+              onPress={onClose}
+              style={[styles.modalActionButton, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
+            >
+              <Ionicons name="close" size={22} color="#FFFFFF" />
+            </Pressable>
+
+            <Txt variant="label" style={{ color: '#FFFFFF', fontSize: 16 }}>
+              Scan Barcode
+            </Txt>
+
+            <Pressable
+              onPress={scanner.toggleTorch}
+              style={[
+                styles.modalActionButton,
+                { backgroundColor: scanner.torchOn ? '#FFFFFF' : 'rgba(0,0,0,0.5)' },
+              ]}
+            >
+              <Ionicons
+                name={scanner.torchOn ? 'flash' : 'flash-outline'}
+                size={20}
+                color={scanner.torchOn ? '#16171D' : '#FFFFFF'}
+              />
+            </Pressable>
+          </View>
+
+          {/* Frame */}
+          <View style={[styles.frame, { borderColor: frameColor }]}>
+            <Txt variant="label" style={{ color: '#FFFFFF' }} align="center">
+              {scanner.phase === 'looking-up'
+                ? 'Reading...'
+                : scanner.phase === 'found'
+                  ? 'Captured'
+                  : 'Point at a barcode'}
+            </Txt>
+          </View>
+
+          <View style={{ paddingHorizontal: 20, paddingBottom: 40 }}>
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => [
+                styles.cancelButton,
+                { backgroundColor: 'rgba(255,255,255,0.15)', opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Txt variant="label" style={{ color: '#FFFFFF' }}>Cancel</Txt>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  scanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  frame: {
+    alignSelf: 'center',
+    width: '85%',
+    aspectRatio: 1.6,
+    borderWidth: 3,
+    borderRadius: 20,
+    justifyContent: 'flex-end',
+    padding: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'space-between',
+    padding: 20,
+    paddingTop: 60,
+  },
+  modalTopBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalActionButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+});

@@ -3,11 +3,17 @@
     "name": "QuickBill",
     "slug": "QuickBill",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "requireFullScreen": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "QuickBill uses the camera to scan product barcodes at the counter. No photos or video are recorded.",
+        "NSPhotoLibraryUsageDescription": "Attach a photo to a product so it is easy to recognise in your catalogue."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -16,14 +22,29 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.quickbill.pos",
+      "permissions": ["android.permission.CAMERA"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-sqlite",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "QuickBill uses the camera to scan product barcodes at the counter.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach a photo to a product so it is easy to recognise in your catalogue."
+        }
+      ]
     ]
   }
 }

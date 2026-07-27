@@ -39,7 +39,13 @@ const ProductsStack = createNativeStackNavigator<ProductsStackParamList>();
 const BillsStack = createNativeStackNavigator<BillsStackParamList>();
 const MoreStack = createNativeStackNavigator<MoreStackParamList>();
 
-/** Wraps a screen so a render crash inside it stays contained. */
+/**
+ * Wraps a screen so a render crash inside it stays contained.
+ *
+ * These MUST be created once at module scope, not inline in a navigator's
+ * render. A fresh component identity on every render makes React treat it as a
+ * different type and remount the screen, wiping its state mid-sale.
+ */
 function guarded<P extends object>(Component: React.ComponentType<P>, label: string) {
   return function Guarded(props: P) {
     return (
@@ -49,6 +55,18 @@ function guarded<P extends object>(Component: React.ComponentType<P>, label: str
     );
   };
 }
+
+const GuardedDashboard = guarded(DashboardScreen, 'dashboard');
+const GuardedReports = guarded(ReportsScreen, 'reports');
+const GuardedScan = guarded(ScanScreen, 'scanner');
+const GuardedProductList = guarded(ProductListScreen, 'product list');
+const GuardedProductDetail = guarded(ProductDetailScreen, 'product details');
+const GuardedProductForm = guarded(ProductFormScreen, 'product form');
+const GuardedBillHistory = guarded(BillHistoryScreen, 'bill history');
+const GuardedMore = guarded(MoreScreen, 'more menu');
+const GuardedSettings = guarded(SettingsScreen, 'settings');
+const GuardedPrinterSettings = guarded(PrinterSettingsScreen, 'printer settings');
+const GuardedAbout = guarded(AboutScreen, 'about');
 
 function useStackOptions() {
   const theme = useTheme();
@@ -66,12 +84,12 @@ function HomeNavigator() {
     <HomeStack.Navigator screenOptions={options}>
       <HomeStack.Screen
         name="Dashboard"
-        component={guarded(DashboardScreen, 'dashboard')}
+        component={GuardedDashboard}
         options={{ title: 'QuickBill' }}
       />
       <HomeStack.Screen
         name="Reports"
-        component={guarded(ReportsScreen, 'reports')}
+        component={GuardedReports}
         options={{ title: 'Reports' }}
       />
     </HomeStack.Navigator>
@@ -84,17 +102,17 @@ function ProductsNavigator() {
     <ProductsStack.Navigator screenOptions={options}>
       <ProductsStack.Screen
         name="ProductList"
-        component={guarded(ProductListScreen, 'product list')}
+        component={GuardedProductList}
         options={{ title: 'Products' }}
       />
       <ProductsStack.Screen
         name="ProductDetail"
-        component={guarded(ProductDetailScreen, 'product details')}
+        component={GuardedProductDetail}
         options={{ title: 'Product' }}
       />
       <ProductsStack.Screen
         name="ProductForm"
-        component={guarded(ProductFormScreen, 'product form')}
+        component={GuardedProductForm}
         options={({ route }) => ({
           title: route.params?.productId ? 'Edit product' : 'Add product',
         })}
@@ -109,7 +127,7 @@ function BillsNavigator() {
     <BillsStack.Navigator screenOptions={options}>
       <BillsStack.Screen
         name="BillHistory"
-        component={guarded(BillHistoryScreen, 'bill history')}
+        component={GuardedBillHistory}
         options={{ title: 'Bills' }}
       />
     </BillsStack.Navigator>
@@ -122,22 +140,22 @@ function MoreNavigator() {
     <MoreStack.Navigator screenOptions={options}>
       <MoreStack.Screen
         name="MoreMenu"
-        component={guarded(MoreScreen, 'more menu')}
+        component={GuardedMore}
         options={{ title: 'More' }}
       />
       <MoreStack.Screen
         name="Settings"
-        component={guarded(SettingsScreen, 'settings')}
+        component={GuardedSettings}
         options={{ title: 'Shop settings' }}
       />
       <MoreStack.Screen
         name="PrinterSettings"
-        component={guarded(PrinterSettingsScreen, 'printer settings')}
+        component={GuardedPrinterSettings}
         options={{ title: 'Printer' }}
       />
       <MoreStack.Screen
         name="About"
-        component={guarded(AboutScreen, 'about')}
+        component={GuardedAbout}
         options={{ title: 'About' }}
       />
     </MoreStack.Navigator>
@@ -191,7 +209,7 @@ export function MainTabs() {
       />
       <Tab.Screen
         name="ScanTab"
-        component={guarded(ScanScreen, 'scanner')}
+        component={GuardedScan}
         options={{
           title: 'Scan',
           // Raised centre button — the action the app exists for.

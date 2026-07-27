@@ -27,6 +27,24 @@ import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+/**
+ * Hoisted to module scope for the same reason as in MainTabs: a component
+ * identity created during render remounts the screen on every re-render.
+ */
+function guarded<P extends object>(Component: React.ComponentType<P>, label: string) {
+  return function Guarded(props: P) {
+    return (
+      <ErrorBoundary label={label}>
+        <Component {...props} />
+      </ErrorBoundary>
+    );
+  };
+}
+
+const GuardedCart = guarded(CartScreen, 'cart');
+const GuardedCheckout = guarded(CheckoutScreen, 'checkout');
+const GuardedReceipt = guarded(ReceiptScreen, 'receipt');
+
 function Splash() {
   const theme = useTheme();
   return (
@@ -82,26 +100,17 @@ export function RootNavigator() {
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen
               name="Cart"
+              component={GuardedCart}
               options={{ headerShown: true, title: 'Current bill', ...headerOptions }}
-            >
-              {() => (
-                <ErrorBoundary label="cart">
-                  <CartScreen />
-                </ErrorBoundary>
-              )}
-            </Stack.Screen>
+            />
             <Stack.Screen
               name="Checkout"
+              component={GuardedCheckout}
               options={{ headerShown: true, title: 'Checkout', ...headerOptions }}
-            >
-              {() => (
-                <ErrorBoundary label="checkout">
-                  <CheckoutScreen />
-                </ErrorBoundary>
-              )}
-            </Stack.Screen>
+            />
             <Stack.Screen
               name="Receipt"
+              component={GuardedReceipt}
               options={{
                 headerShown: true,
                 title: 'Bill',
@@ -109,13 +118,7 @@ export function RootNavigator() {
                 gestureEnabled: false,
                 ...headerOptions,
               }}
-            >
-              {() => (
-                <ErrorBoundary label="receipt">
-                  <ReceiptScreen />
-                </ErrorBoundary>
-              )}
-            </Stack.Screen>
+            />
           </>
         )}
       </Stack.Navigator>

@@ -217,9 +217,11 @@ function FloatingCapsuleTabBar({ state, descriptors, navigation }: BottomTabBarP
               <View
                 style={[
                   styles.iconSquare,
-                  isFocused ? { backgroundColor: activeSquareBg } : styles.inactiveIconSquare,
-                  isScan && !isFocused && styles.scanButtonInactive,
-                  isScan && isFocused && { backgroundColor: activeSquareBg },
+                  isFocused
+                    ? { backgroundColor: activeSquareBg }
+                    : isScan
+                      ? styles.scanButtonInactive
+                      : styles.inactiveIconSquare,
                 ]}
               >
                 <Ionicons
@@ -227,14 +229,18 @@ function FloatingCapsuleTabBar({ state, descriptors, navigation }: BottomTabBarP
                   size={isScan ? 22 : 20}
                   color={isFocused ? activeIconColor : '#9CA3AF'}
                 />
-
-                {/* Unfinished sale badge indicator on Bills icon */}
-                {isBills && cartCount > 0 ? (
-                  <View style={styles.badgeDot}>
-                    <Text style={styles.badgeText}>{cartCount}</Text>
-                  </View>
-                ) : null}
               </View>
+
+              {/*
+                The badge sits OUTSIDE the circle. Inside it, the round
+                `overflow: hidden` clips anything in the corner — which is
+                exactly where a top-right badge lives.
+              */}
+              {isBills && cartCount > 0 ? (
+                <View style={styles.badgeDot} pointerEvents="none">
+                  <Text style={styles.badgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
+                </View>
+              ) : null}
             </Pressable>
           );
         })}
@@ -271,10 +277,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    // Exactly half the height, so it is a true capsule at every screen size.
-    // A fixed 20 on a 64pt bar rendered as a rounded *square*, which is what
-    // made the bar look inconsistent.
-    borderRadius: 32,
+    // Same reasoning as the icon circles: 999 lets RN clamp to half the
+    // measured height, so it stays a true capsule even if the bar's height
+    // ever changes. A hardcoded 20 rendered as a rounded square.
+    borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 9,
     width: '100%',
@@ -289,16 +295,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconSquare: {
-    // Square dimensions + half-radius = a real circle. Previously 48×42 with
-    // radius 14, which is a rounded rectangle and read as a square.
     width: 46,
     height: 46,
-    borderRadius: 23,
+    // 999, not 23. React Native clamps borderRadius to half the SMALLER
+    // measured side, so this is a perfect circle at whatever size the box
+    // actually ends up. A hardcoded 23 only looks circular while the box is
+    // exactly 46×46 — the moment flex compresses it (narrow screens, font
+    // scaling, a stale measurement) it renders as a rounded square, which is
+    // the inconsistency that kept showing up.
+    borderRadius: 999,
+    // Belt and braces: never let flex squash or stretch it out of square.
+    aspectRatio: 1,
+    flexShrink: 0,
+    flexGrow: 0,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  activeIconSquare: {
-    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
   },
   inactiveIconSquare: {
     backgroundColor: 'transparent',
@@ -306,20 +318,22 @@ const styles = StyleSheet.create({
   scanButtonInactive: {
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
   },
-  scanButtonActive: {
-    backgroundColor: '#FFFFFF',
-  },
   badgeDot: {
+    // Positioned against the tab item, not the icon circle, so the round
+    // clip can't cut it off.
     position: 'absolute',
-    top: 2,
-    right: 2,
+    top: 0,
+    right: 6,
     backgroundColor: '#EF4444',
-    borderRadius: 9,
+    borderRadius: 999,
     minWidth: 18,
-    height: 16,
+    height: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
+    // Separates the badge from the dark bar behind it.
+    borderWidth: 2,
+    borderColor: '#16171D',
   },
   badgeText: {
     color: '#FFFFFF',

@@ -23,7 +23,9 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.quickbill.pos",
-      "permissions": ["android.permission.CAMERA"]
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -43,7 +45,8 @@
         {
           "photosPermission": "Attach a photo to a product so it is easy to recognise in your catalogue."
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

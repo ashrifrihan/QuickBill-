@@ -61,7 +61,9 @@ export class BillingService {
     }
 
     const db = await getDatabase();
-    let saved: Invoice | null = null;
+    // Held in an object rather than a bare `let`: the assignment happens inside
+    // a closure, which control-flow analysis cannot see through.
+    const captured: { invoice?: Invoice } = {};
 
     try {
       await db.withExclusiveTransactionAsync(async (txn) => {
@@ -112,7 +114,7 @@ export class BillingService {
           }
         }
 
-        saved = persisted;
+        captured.invoice = persisted;
       });
     } catch (error) {
       logger.error('Checkout failed and was rolled back', error, {
@@ -126,6 +128,7 @@ export class BillingService {
       throw new DatabaseError('Checkout transaction failed', { cause: error });
     }
 
+    const saved = captured.invoice;
     if (!saved) {
       throw new DatabaseError('Checkout completed without producing an invoice');
     }

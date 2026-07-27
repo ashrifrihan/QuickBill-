@@ -12,16 +12,15 @@ import { DatabaseError } from '../errors/AppError';
 import { logger } from '../errors/logger';
 
 /**
- * The subset of the SQLite API our repositories use. Both `SQLiteDatabase`
- * and a transaction context satisfy it, which is what lets BillingService run
- * repository methods *inside* its checkout transaction.
+ * The subset of the SQLite API our repositories use. Derived from the real
+ * type (rather than hand-written) so it keeps expo's exact overloads — that is
+ * what lets both `SQLiteDatabase` and a `Transaction` satisfy it, and in turn
+ * lets BillingService run repository methods *inside* its checkout transaction.
  */
-export interface SQLiteExecutor {
-  runAsync(source: string, params?: SQLite.SQLiteBindValue[]): Promise<SQLite.SQLiteRunResult>;
-  getAllAsync<T>(source: string, params?: SQLite.SQLiteBindValue[]): Promise<T[]>;
-  getFirstAsync<T>(source: string, params?: SQLite.SQLiteBindValue[]): Promise<T | null>;
-  execAsync(source: string): Promise<void>;
-}
+export type SQLiteExecutor = Pick<
+  SQLite.SQLiteDatabase,
+  'runAsync' | 'getAllAsync' | 'getFirstAsync' | 'execAsync'
+>;
 
 let database: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;

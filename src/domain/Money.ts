@@ -165,7 +165,10 @@ export function formatMoney(amount: Money, currency = 'LKR'): string {
   const minor = absolute % MINOR_UNITS_PER_MAJOR;
   const grouped = major.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   const sign = negative ? '-' : '';
-  return `${sign}${currency} ${grouped}.${minor.toString().padStart(2, '0')}`;
+  // The currency code is dropped entirely when blank, so formatAmount() does
+  // not leave a stray space between the sign and the digits.
+  const prefix = currency ? `${currency} ` : '';
+  return `${sign}${prefix}${grouped}.${minor.toString().padStart(2, '0')}`;
 }
 
 /** Formats without the currency code, for tight table columns. */

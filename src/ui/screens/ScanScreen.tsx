@@ -10,6 +10,7 @@
 import React, { useCallback, useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { CameraView } from 'expo-camera';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useScanner } from '../hooks/useScanner';
@@ -80,7 +81,10 @@ export function ScanScreen() {
     return (
       <Screen scroll contentStyle={{ flexGrow: 1, justifyContent: 'center' }}>
         <Card>
-          <Txt variant="title">📷 Camera access needed</Txt>
+          <Row gap={theme.spacing.sm}>
+            <Ionicons name="camera-outline" size={24} color={theme.colors.text} />
+            <Txt variant="title">Camera access needed</Txt>
+          </Row>
           <Spacer size={theme.spacing.sm} />
           <Txt color="muted">
             QuickBill uses the camera only to read product barcodes. Nothing is recorded or

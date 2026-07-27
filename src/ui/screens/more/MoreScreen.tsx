@@ -1,13 +1,14 @@
-/** The "More" tab: profile, settings, printer, about (guide §11). */
+/** The "More" / Profile tab: profile, settings, printer, about (guide §11). */
 
 import React from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore, useIsAdmin } from '../../../store/authStore';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { useTheme } from '../../hooks/useResponsive';
-import { Badge, Card, Divider, Row, Screen, Spacer, Txt } from '../../components/common';
+import { Badge, BentoCard, Card, Divider, Row, Screen, Spacer, Txt, IconName } from '../../components/common';
 import type { MoreStackParamList } from '../../../navigation/types';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList>;
@@ -28,69 +29,169 @@ export function MoreScreen() {
     ]);
   };
 
-  const item = (label: string, hint: string, onPress: () => void, adminOnly = false) => {
-    // Admin-only rows are hidden rather than shown-and-disabled (guide §11).
+  const item = (
+    icon: IconName,
+    label: string,
+    hint: string,
+    onPress: () => void,
+    adminOnly = false,
+  ) => {
     if (adminOnly && !isAdmin) return null;
     return (
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={label}
-        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingVertical: 14 })}
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, paddingVertical: 14 })}
       >
         <Row style={{ justifyContent: 'space-between' }}>
-          <View style={{ flex: 1 }}>
-            <Txt variant="label">{label}</Txt>
-            <Txt variant="caption" color="muted">
-              {hint}
-            </Txt>
-          </View>
-          <Txt color="muted">›</Txt>
+          <Row gap={theme.spacing.md} style={{ flex: 1 }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: theme.colors.surfaceAlt,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name={icon} size={20} color={theme.colors.text} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Txt variant="label" style={{ fontSize: 15, fontWeight: '700' }}>
+                {label}
+              </Txt>
+              <Txt variant="caption" color="muted">
+                {hint}
+              </Txt>
+            </View>
+          </Row>
+          <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
         </Row>
       </Pressable>
     );
   };
 
+  const avatarInitials = (user?.name ?? 'SB').substring(0, 2).toUpperCase();
+
   return (
     <Screen scroll>
-      <Card>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <View>
-            <Txt variant="heading">{user?.name ?? 'Not signed in'}</Txt>
-            <Spacer size={2} />
-            <Txt variant="caption" color="muted">
-              @{user?.username ?? '—'}
+      {/* Title */}
+      <Txt variant="title" style={{ fontSize: 28, fontWeight: '700', marginBottom: theme.spacing.md }}>
+        Profile & Settings
+      </Txt>
+
+      {/* User Profile Card (Matching uploaded profile design) */}
+      <Card variant="surface" radiusSize="xl">
+        <Row gap={theme.spacing.lg}>
+          <View
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: theme.colors.pastelPurple,
+              borderWidth: 1.5,
+              borderColor: theme.colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Txt style={{ fontSize: 24, fontWeight: '700', color: theme.colors.pastelPurpleText }}>
+              {avatarInitials}
             </Txt>
           </View>
-          {user ? <Badge label={user.role} tone={isAdmin ? 'primary' : 'neutral'} /> : null}
+          <View style={{ flex: 1 }}>
+            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <Txt variant="heading" style={{ fontSize: 20, fontWeight: '700' }}>
+                {user?.name ?? 'Cashier'}
+              </Txt>
+              {user ? <Badge label={user.role.toUpperCase()} tone={isAdmin ? 'purple' : 'neutral'} /> : null}
+            </Row>
+            <Spacer size={2} />
+            <Txt variant="caption" color="muted">
+              @{user?.username ?? 'cashier'} · {settings.shopName}
+            </Txt>
+          </View>
         </Row>
       </Card>
 
       <Spacer size={theme.spacing.lg} />
 
-      <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-        {item('Shop settings', 'Name, currency, tax, low-stock alert', () =>
+      {/* Metric Soft Pastel Pills (Matching weight/goal cards from uploaded profile screen) */}
+      <Row gap={theme.spacing.sm}>
+        <View style={{ flex: 1 }}>
+          <BentoCard
+            title={settings.currency}
+            subtitle="Currency"
+            tagLabel="STORE"
+            tagTone="green"
+            variant="green"
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <BentoCard
+            title={`${settings.taxRate}%`}
+            subtitle="Tax Rate"
+            tagLabel="TAX"
+            tagTone="blue"
+            variant="blue"
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <BentoCard
+            title={`${settings.lowStockThreshold}`}
+            subtitle="Low Stock Alert"
+            tagLabel="ALERT"
+            tagTone="yellow"
+            variant="yellow"
+          />
+        </View>
+      </Row>
+
+      <Spacer size={theme.spacing.lg} />
+
+      {/* Settings Navigation Options List */}
+      <Card variant="surface" radiusSize="xl" style={{ paddingHorizontal: theme.spacing.lg }}>
+        {item('storefront-outline', 'Shop settings', 'Name, currency, tax & low-stock alert', () =>
           navigation.navigate('Settings'),
           true,
         )}
         {isAdmin ? <Divider /> : null}
-        {item('Printer', `Currently: ${settings.printerStrategy === 'pdf' ? 'PDF / share' : 'Bluetooth'}`, () =>
+        {item('print-outline', 'Printer Strategy', `Currently: ${settings.printerStrategy === 'pdf' ? 'PDF / Share' : 'Bluetooth'}`, () =>
           navigation.navigate('PrinterSettings'),
         )}
         <Divider />
-        {item('About QuickBill', 'Version and credits', () => navigation.navigate('About'))}
+        {item('information-circle-outline', 'About QuickBill', 'App version and architecture notes', () => navigation.navigate('About'))}
       </Card>
 
       <Spacer size={theme.spacing.lg} />
 
-      <Card>
+      {/* Dark Mode Switch Card */}
+      <Card variant="surface" radiusSize="xl">
         <Row style={{ justifyContent: 'space-between' }}>
-          <View>
-            <Txt variant="label">Dark mode</Txt>
-            <Txt variant="caption" color="muted">
-              Easier on the eyes in a dim shop
-            </Txt>
-          </View>
+          <Row gap={theme.spacing.md}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: theme.colors.pastelPurple,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="moon-outline" size={20} color={theme.colors.pastelPurpleText} />
+            </View>
+            <View>
+              <Txt variant="label" style={{ fontSize: 15, fontWeight: '700' }}>
+                Dark Mode
+              </Txt>
+              <Txt variant="caption" color="muted">
+                Comfortable theme for dim store environments
+              </Txt>
+            </View>
+          </Row>
           <Pressable
             onPress={() => void setThemeMode(settings.themeMode === 'dark' ? 'light' : 'dark')}
             accessibilityRole="switch"
@@ -102,7 +203,7 @@ export function MoreScreen() {
               borderRadius: 16,
               padding: 3,
               backgroundColor:
-                settings.themeMode === 'dark' ? theme.colors.primary : theme.colors.border,
+                settings.themeMode === 'dark' ? theme.colors.pastelPurpleText : theme.colors.border,
               justifyContent: 'center',
               alignItems: settings.themeMode === 'dark' ? 'flex-end' : 'flex-start',
             }}
@@ -121,19 +222,23 @@ export function MoreScreen() {
 
       <Spacer size={theme.spacing.lg} />
 
+      {/* Sign Out Action Button */}
       <Pressable
         onPress={handleSignOut}
         accessibilityRole="button"
-        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
       >
-        <Card>
-          <Txt variant="label" color="danger" align="center">
-            Sign out
-          </Txt>
+        <Card variant="pink" radiusSize="xl">
+          <Row style={{ justifyContent: 'center' }} gap={theme.spacing.sm}>
+            <Ionicons name="log-out-outline" size={20} color={theme.colors.pastelPinkText} />
+            <Txt variant="label" style={{ color: theme.colors.pastelPinkText, fontSize: 16, fontWeight: '700' }}>
+              Sign Out of Till
+            </Txt>
+          </Row>
         </Card>
       </Pressable>
 
-      <Spacer size={theme.spacing.xl} />
+      <Spacer size={theme.spacing.xxl} />
     </Screen>
   );
 }

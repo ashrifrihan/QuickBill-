@@ -57,6 +57,7 @@ export function BillHistoryScreen() {
         value={search}
         onChangeText={setSearch}
         placeholder="Search bill number or customer…"
+        icon="search-outline"
         autoCapitalize="none"
         returnKeyType="search"
       />
@@ -67,7 +68,7 @@ export function BillHistoryScreen() {
             key={filter.id}
             title={filter.label}
             size="small"
-            variant={status === filter.id ? 'primary' : 'secondary'}
+            variant={status === filter.id ? 'purple' : 'secondary'}
             onPress={() => setStatus(filter.id)}
           />
         ))}
@@ -95,7 +96,7 @@ export function BillHistoryScreen() {
       {header}
       {invoices.length === 0 ? (
         <EmptyState
-          icon="🧾"
+          icon="receipt-outline"
           title={search || status !== 'all' ? 'No matching bills' : 'No bills yet'}
           message={
             search || status !== 'all'
@@ -109,7 +110,7 @@ export function BillHistoryScreen() {
           keyExtractor={(invoice) => String(invoice.id)}
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.lg,
-            paddingBottom: theme.spacing.xxl,
+            paddingBottom: 110,
             gap: theme.spacing.md,
           }}
           onRefresh={reload}
@@ -138,10 +139,10 @@ export function BillHistoryScreen() {
                   )}`}
                   style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
                 >
-                  <Card>
+                  <Card variant="surface" radiusSize="xl">
                     <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <View style={{ flex: 1 }}>
-                        <Txt variant="label">{item.invoiceNo}</Txt>
+                        <Txt variant="label" style={{ fontSize: 16, fontWeight: '700' }}>{item.invoiceNo}</Txt>
                         <Spacer size={2} />
                         <Txt variant="caption" color="muted">
                           {formatTime(item.createdAt)} · {item.unitCount()} items
@@ -149,13 +150,13 @@ export function BillHistoryScreen() {
                         </Txt>
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
-                        <Txt variant="heading">{formatMoney(item.grandTotal, currency)}</Txt>
+                        <Txt variant="heading" style={{ fontSize: 17, fontWeight: '700' }}>{formatMoney(item.grandTotal, currency)}</Txt>
                         <Spacer size={4} />
                         <Badge
                           label={item.paymentStatus}
                           tone={
                             item.paymentStatus === 'paid'
-                              ? 'success'
+                              ? 'green'
                               : item.paymentStatus === 'refunded'
                                 ? 'neutral'
                                 : 'warning'

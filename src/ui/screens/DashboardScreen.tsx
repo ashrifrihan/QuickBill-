@@ -1,4 +1,4 @@
-/** Home: today at a glance (guide §12). */
+/** Home: today at a glance with Bento Box & Soft Pastel UI aesthetics (guide §12). */
 
 import React from 'react';
 import { Pressable, View } from 'react-native';
@@ -13,10 +13,12 @@ import { useCartTotals } from '../../store/cartStore';
 import { useResponsive, useTheme } from '../hooks/useResponsive';
 import {
   Badge,
+  BentoCard,
   Button,
   Card,
   Divider,
   ErrorState,
+  HeaderBar,
   LoadingState,
   Row,
   Screen,
@@ -72,101 +74,181 @@ export function DashboardScreen() {
 
   const { dashboard, recent } = data;
   const currency = settings.currency;
+  const userName = user ? user.name.split(' ')[0] : 'Cashier';
+  const avatarInitials = userName.substring(0, 2).toUpperCase();
+
+  const todayDateStr = new Date().toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'short',
+  });
 
   return (
     <Screen scroll>
-      <Txt variant="caption" color="muted">
-        {settings.shopName}
-      </Txt>
-      <Txt variant="title">Hello{user ? `, ${user.name.split(' ')[0]}` : ''} 👋</Txt>
+      {/* Profile Header (Matching uploaded design style with vector icons) */}
+      <HeaderBar
+        title={`Hello, ${userName}`}
+        subtitle={`${settings.shopName} · Today ${todayDateStr}`}
+        avatarText={avatarInitials}
+        actionIcon="analytics-outline"
+        onActionPress={() => navigation.navigate('Main', { screen: 'HomeTab', params: { screen: 'Reports' } })}
+      />
+
+      {/* Hero Bento Banner */}
+      {cartTotals.itemCount > 0 ? (
+        <BentoCard
+          title="Sale in progress"
+          subtitle={`${cartTotals.unitCount} item${cartTotals.unitCount === 1 ? '' : 's'} in cart · tap to review`}
+          tagLabel="ACTIVE TILL"
+          tagTone="yellow"
+          variant="yellow"
+          icon="cart-outline"
+          onPress={() => navigation.navigate('Cart')}
+        >
+          <Row style={{ justifyContent: 'space-between', marginTop: theme.spacing.sm }}>
+            <Txt variant="display" style={{ color: theme.colors.pastelYellowText, fontSize: 26 }}>
+              {formatMoney(cartTotals.grandTotal, currency)}
+            </Txt>
+            <Button
+              title="Checkout →"
+              variant="primary"
+              size="small"
+              onPress={() => navigation.navigate('Cart')}
+            />
+          </Row>
+        </BentoCard>
+      ) : (
+        <BentoCard
+          title="Daily challenge"
+          subtitle="Do your sales goal before end of shift. Tap to start."
+          tagLabel="TODAY'S PLAN"
+          tagTone="purple"
+          variant="purple"
+          icon="flash-outline"
+          onPress={() => navigation.navigate('Main', { screen: 'ScanTab' })}
+        >
+          <Spacer size={theme.spacing.xs} />
+          <Row style={{ justifyContent: 'space-between', marginTop: theme.spacing.xs }}>
+            <Txt variant="heading" style={{ color: theme.colors.pastelPurpleText, fontSize: 16 }}>
+              Ready for next customer
+            </Txt>
+            <Button
+              title="Start Sale →"
+              variant="primary"
+              size="small"
+              onPress={() => navigation.navigate('Main', { screen: 'ScanTab' })}
+            />
+          </Row>
+        </BentoCard>
+      )}
 
       <Spacer size={theme.spacing.lg} />
 
-      {/* An unfinished sale is the most urgent thing on this screen. */}
-      {cartTotals.itemCount > 0 ? (
-        <>
-          <Pressable onPress={() => navigation.navigate('Cart')} accessibilityRole="button">
-            <Card style={{ backgroundColor: theme.colors.primary }}>
-              <Row style={{ justifyContent: 'space-between' }}>
-                <View>
-                  <Txt variant="label" style={{ color: theme.colors.primaryText }}>
-                    Sale in progress
-                  </Txt>
-                  <Txt variant="caption" style={{ color: theme.colors.primaryText, opacity: 0.85 }}>
-                    {cartTotals.unitCount} item{cartTotals.unitCount === 1 ? '' : 's'} · tap to
-                    continue
-                  </Txt>
-                </View>
-                <Txt variant="heading" style={{ color: theme.colors.primaryText }}>
-                  {formatMoney(cartTotals.grandTotal, currency)}
-                </Txt>
-              </Row>
-            </Card>
-          </Pressable>
-          <Spacer size={theme.spacing.lg} />
-        </>
-      ) : null}
+      {/* Section Header */}
+      <Txt variant="heading" style={{ fontSize: 19, fontWeight: '700' }}>
+        Today's Overview
+      </Txt>
+      <Spacer size={theme.spacing.md} />
 
+      {/* Bento Grid Metrics Cards (Matching soft pastel pills in uploaded design) */}
       <Row gap={theme.spacing.md} style={{ flexWrap: isTablet ? 'nowrap' : 'wrap' }}>
-        <Stat
-          label="Today's sales"
-          value={formatMoney(dashboard.today.total, currency)}
-          hint={`${dashboard.today.billCount} bill${dashboard.today.billCount === 1 ? '' : 's'}`}
-        />
-        <Stat
-          label="This week"
-          value={formatMoney(dashboard.week.total, currency)}
-          hint={`${dashboard.week.billCount} bills`}
-        />
+        {/* Today's sales card */}
+        <View style={{ flex: 1, minWidth: 150 }}>
+          <BentoCard
+            title={formatMoney(dashboard.today.total, currency)}
+            subtitle={`${dashboard.today.billCount} bill${dashboard.today.billCount === 1 ? '' : 's'}`}
+            tagLabel="TODAY'S SALES"
+            tagTone="green"
+            variant="green"
+          />
+        </View>
+
+        {/* Weekly sales card */}
+        <View style={{ flex: 1, minWidth: 150 }}>
+          <BentoCard
+            title={formatMoney(dashboard.week.total, currency)}
+            subtitle={`${dashboard.week.billCount} total bills`}
+            tagLabel="THIS WEEK"
+            tagTone="blue"
+            variant="blue"
+          />
+        </View>
       </Row>
 
       <Spacer size={theme.spacing.md} />
 
-      <Row gap={theme.spacing.md}>
-        <Stat
-          label="Avg. bill today"
-          value={formatMoney(dashboard.today.averageBill, currency)}
-          hint={`${dashboard.today.unitsSold} units sold`}
-        />
-        <Stat
-          label="Low stock"
-          value={String(dashboard.lowStock.length)}
-          hint={dashboard.lowStock.length > 0 ? 'needs restocking' : 'all good'}
-          tone={dashboard.lowStock.length > 0 ? 'warning' : 'success'}
-        />
+      <Row gap={theme.spacing.md} style={{ flexWrap: isTablet ? 'nowrap' : 'wrap' }}>
+        {/* Average Bill */}
+        <View style={{ flex: 1, minWidth: 150 }}>
+          <BentoCard
+            title={formatMoney(dashboard.today.averageBill, currency)}
+            subtitle={`${dashboard.today.unitsSold} units sold`}
+            tagLabel="AVG. BILL"
+            tagTone="yellow"
+            variant="yellow"
+          />
+        </View>
+
+        {/* Low Stock Warning */}
+        <View style={{ flex: 1, minWidth: 150 }}>
+          <BentoCard
+            title={`${dashboard.lowStock.length} items`}
+            subtitle={dashboard.lowStock.length > 0 ? 'needs restocking' : 'all items in stock'}
+            tagLabel="LOW STOCK"
+            tagTone={dashboard.lowStock.length > 0 ? 'pink' : 'green'}
+            variant={dashboard.lowStock.length > 0 ? 'pink' : 'green'}
+          />
+        </View>
       </Row>
 
       <Spacer size={theme.spacing.xl} />
 
+      {/* Primary Floating Action Button */}
       <Button
         title="Start a new sale"
+        icon="scan-outline"
         size="large"
+        variant="primary"
         onPress={() => navigation.navigate('Main', { screen: 'ScanTab' })}
       />
 
       <Spacer size={theme.spacing.xl} />
 
+      {/* Running Low Products Card */}
       {dashboard.lowStock.length > 0 ? (
         <>
-          <Card>
+          <Card variant="surface" radiusSize="xl">
             <Row style={{ justifyContent: 'space-between' }}>
-              <Txt variant="heading">Running low</Txt>
-              <Badge label={`${dashboard.lowStock.length}`} tone="warning" />
+              <View>
+                <Txt variant="heading">Running Low</Txt>
+                <Txt variant="caption" color="muted">
+                  Items requiring inventory replenishment
+                </Txt>
+              </View>
+              <Badge label={`${dashboard.lowStock.length} items`} tone="danger" />
             </Row>
             <Spacer size={theme.spacing.md} />
-            {dashboard.lowStock.slice(0, 5).map((product) => (
-              <Row key={product.id} style={{ justifyContent: 'space-between', paddingVertical: 5 }}>
-                <Txt numberOfLines={1} style={{ flex: 1 }}>
-                  {product.name}
-                </Txt>
-                <Txt color={product.isOutOfStock() ? 'danger' : 'warning'}>
-                  {product.stockQty} left
-                </Txt>
-              </Row>
+            {dashboard.lowStock.slice(0, 4).map((product, index) => (
+              <View key={product.id}>
+                {index > 0 ? <Divider /> : null}
+                <Row style={{ justifyContent: 'space-between', paddingVertical: 10 }}>
+                  <View style={{ flex: 1, paddingRight: theme.spacing.sm }}>
+                    <Txt variant="label" numberOfLines={1}>
+                      {product.name}
+                    </Txt>
+                    <Txt variant="caption" color="muted">
+                      Barcode: {product.barcode}
+                    </Txt>
+                  </View>
+                  <Badge
+                    label={`${product.stockQty} left`}
+                    tone={product.isOutOfStock() ? 'danger' : 'warning'}
+                  />
+                </Row>
+              </View>
             ))}
             <Spacer size={theme.spacing.md} />
             <Button
-              title="View all"
+              title="View inventory list →"
               variant="ghost"
               size="small"
               onPress={() =>
@@ -181,11 +263,19 @@ export function DashboardScreen() {
         </>
       ) : null}
 
-      <Card>
-        <Txt variant="heading">Recent bills</Txt>
-        <Spacer size={theme.spacing.md} />
+      {/* Recent Bills Card */}
+      <Card variant="surface" radiusSize="xl">
+        <Row style={{ justifyContent: 'space-between', marginBottom: theme.spacing.md }}>
+          <View>
+            <Txt variant="heading">Recent Bills</Txt>
+            <Txt variant="caption" color="muted">
+              Latest transactions
+            </Txt>
+          </View>
+          <Badge label={`${recent.length} recent`} tone="primary" />
+        </Row>
         {recent.length === 0 ? (
-          <Txt color="muted">No sales yet today.</Txt>
+          <Txt color="muted">No sales recorded yet today.</Txt>
         ) : (
           recent.map((invoice, index) => (
             <View key={invoice.id}>
@@ -195,16 +285,20 @@ export function DashboardScreen() {
                   navigation.navigate('Receipt', { invoiceId: invoice.id! })
                 }
                 accessibilityRole="button"
-                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingVertical: 10 })}
+                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingVertical: 12 })}
               >
                 <Row style={{ justifyContent: 'space-between' }}>
                   <View>
-                    <Txt variant="label">{invoice.invoiceNo}</Txt>
+                    <Txt variant="label" style={{ fontSize: 15, fontWeight: '700' }}>
+                      {invoice.invoiceNo}
+                    </Txt>
                     <Txt variant="caption" color="muted">
-                      {formatTime(invoice.createdAt)} · {invoice.unitCount()} items
+                      {formatTime(invoice.createdAt)} · {invoice.unitCount()} item{invoice.unitCount() === 1 ? '' : 's'}
                     </Txt>
                   </View>
-                  <Txt variant="label">{formatMoney(invoice.grandTotal, currency)}</Txt>
+                  <Txt variant="heading" style={{ color: theme.colors.text, fontSize: 16 }}>
+                    {formatMoney(invoice.grandTotal, currency)}
+                  </Txt>
                 </Row>
               </Pressable>
             </View>
@@ -212,39 +306,7 @@ export function DashboardScreen() {
         )}
       </Card>
 
-      <Spacer size={theme.spacing.xl} />
+      <Spacer size={theme.spacing.xxl} />
     </Screen>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  hint,
-  tone,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  tone?: 'success' | 'warning';
-}) {
-  return (
-    <Card style={{ flex: 1, minWidth: 150 }}>
-      <Txt variant="caption" color="muted">
-        {label}
-      </Txt>
-      <Spacer size={4} />
-      <Txt variant="title" color={tone}>
-        {value}
-      </Txt>
-      {hint ? (
-        <>
-          <Spacer size={2} />
-          <Txt variant="caption" color="muted">
-            {hint}
-          </Txt>
-        </>
-      ) : null}
-    </Card>
   );
 }

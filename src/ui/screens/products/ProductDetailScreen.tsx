@@ -171,8 +171,11 @@ export function ProductDetailScreen() {
             {formatMoney(product.sellingPrice * quantity, currency)}
           </Txt>
         </Row>
-        <Spacer size={theme.spacing.md} />
-        <Button title={added ? '✓ Added — add more?' : 'Add to bill'} onPress={handleAddToBill} />
+        <Button
+          title={added ? 'Added — add more?' : 'Add to bill'}
+          icon={added ? 'checkmark-circle-outline' : 'cart-outline'}
+          onPress={handleAddToBill}
+        />
       </Card>
 
       {isAdmin ? (

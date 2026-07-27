@@ -48,11 +48,12 @@ export function ProductListScreen() {
   } = useProducts({ onlyLowStock: params?.lowStockOnly });
 
   const header = (
-    <View style={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.sm }}>
+    <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.md, paddingBottom: theme.spacing.sm }}>
       <Field
         value={search}
         onChangeText={setSearch}
-        placeholder="Search by name or barcode…"
+        placeholder="Search product name or barcode…"
+        icon="search-outline"
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"
@@ -60,7 +61,7 @@ export function ProductListScreen() {
       {params?.lowStockOnly ? (
         <>
           <Spacer size={theme.spacing.sm} />
-          <Badge label={`Showing stock at or below ${lowStockThreshold}`} tone="warning" />
+          <Badge label={`Low Stock Alert (≤ ${lowStockThreshold} units)`} tone="warning" />
         </>
       ) : null}
     </View>
@@ -69,7 +70,7 @@ export function ProductListScreen() {
   if (initialLoading) {
     return (
       <Screen>
-        <LoadingState label="Loading products…" />
+        <LoadingState label="Loading product catalogue…" />
       </Screen>
     );
   }
@@ -88,27 +89,26 @@ export function ProductListScreen() {
 
       {isEmpty ? (
         <EmptyState
-          icon="📦"
-          title={search ? 'No matches' : 'No products yet'}
+          icon="cube-outline"
+          title={search ? 'No matches found' : 'No products yet'}
           message={
             search
-              ? 'Try a different name or barcode.'
-              : 'Add your first product, or just scan an unknown barcode and QuickBill will offer to add it.'
+              ? 'Try searching with a different product name or barcode.'
+              : 'Add your first product to start taking orders!'
           }
-          actionLabel={isAdmin && !search ? 'Add a product' : undefined}
+          actionLabel={isAdmin && !search ? 'Add Product' : undefined}
           onAction={isAdmin && !search ? () => navigation.navigate('ProductForm') : undefined}
         />
       ) : (
         <FlatList
           data={products}
-          // A remount is required when the column count changes on rotation.
           key={`cols-${columns}`}
           numColumns={columns}
           columnWrapperStyle={columns > 1 ? { gap: theme.spacing.md } : undefined}
           keyExtractor={(product) => String(product.id)}
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.lg,
-            paddingBottom: theme.spacing.xxl,
+            paddingBottom: 110,
             gap: theme.spacing.md,
           }}
           onRefresh={reload}
@@ -126,8 +126,13 @@ export function ProductListScreen() {
       )}
 
       {isAdmin ? (
-        <View style={{ padding: theme.spacing.lg }}>
-          <Button title="+ Add product" onPress={() => navigation.navigate('ProductForm')} />
+        <View style={{ position: 'absolute', right: 20, bottom: 90 }}>
+          <Button
+            title="+ Add Product"
+            variant="purple"
+            size="medium"
+            onPress={() => navigation.navigate('ProductForm')}
+          />
         </View>
       ) : null}
     </Screen>
@@ -155,32 +160,34 @@ function ProductRow({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${product.name}, ${formatMoney(product.sellingPrice, currency)}`}
-      style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }, flex ? { flex: 1 } : null]}
+      style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }, flex ? { flex: 1 } : null]}
     >
-      <Card>
+      <Card variant="surface" radiusSize="xl">
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View style={{ flex: 1, paddingRight: theme.spacing.md }}>
-            <Txt variant="label" numberOfLines={2}>
+            <Txt variant="label" style={{ fontSize: 16, fontWeight: '700' }} numberOfLines={2}>
               {product.name}
             </Txt>
-            <Spacer size={2} />
+            <Spacer size={4} />
             <Txt variant="caption" color="muted">
               {product.barcode}
               {product.category ? ` · ${product.category}` : ''}
             </Txt>
           </View>
-          <Txt variant="heading">{formatMoney(product.sellingPrice, currency)}</Txt>
+          <Txt variant="heading" style={{ color: theme.colors.text, fontSize: 17, fontWeight: '700' }}>
+            {formatMoney(product.sellingPrice, currency)}
+          </Txt>
         </Row>
 
-        <Spacer size={theme.spacing.sm} />
+        <Spacer size={theme.spacing.md} />
 
         <Row gap={theme.spacing.sm}>
           {product.isOutOfStock() ? (
-            <Badge label="Out of stock" tone="danger" />
+            <Badge label="Out of Stock" tone="danger" />
           ) : low ? (
-            <Badge label={`Low · ${product.stockQty} left`} tone="warning" />
+            <Badge label={`Low Stock (${product.stockQty} left)`} tone="warning" />
           ) : (
-            <Badge label={`${product.stockQty} in stock`} tone="success" />
+            <Badge label={`${product.stockQty} in stock`} tone="green" />
           )}
         </Row>
       </Card>

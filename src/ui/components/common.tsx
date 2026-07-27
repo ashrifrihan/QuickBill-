@@ -2,6 +2,8 @@
  * Shared building blocks. Everything here reads spacing, colour and type from
  * the theme (guide §7) and honours the 44pt minimum touch target so a cashier
  * can hit controls fast without mis-taps.
+ *
+ * Implements modern Bento Box & Soft Pastel UI aesthetics (flat, no drop shadows, clean vector icons).
  */
 
 import React from 'react';
@@ -19,12 +21,15 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../hooks/useResponsive';
 import { MIN_TOUCH_TARGET } from '../../config/constants';
 import { Theme } from '../../config/theme';
 
+export type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
 // ---------------------------------------------------------------------------
-// Layout
+// Layout & Bento Components
 // ---------------------------------------------------------------------------
 
 /** Screen shell: safe-area aware, so nothing hides under a notch. */
@@ -45,7 +50,8 @@ export function Screen({
   const body = scroll ? (
     <ScrollView
       style={styles.flex}
-      contentContainerStyle={[{ padding: theme.spacing.lg }, contentStyle]}
+      contentContainerStyle={[{ padding: theme.spacing.lg, paddingBottom: 110 }, contentStyle]}
+      showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
       {children}
@@ -64,24 +70,50 @@ export function Screen({
   );
 }
 
+export type CardVariant =
+  | 'surface'
+  | 'purple'
+  | 'yellow'
+  | 'green'
+  | 'blue'
+  | 'pink'
+  | 'dark';
+
 export function Card({
   children,
   style,
   padded = true,
+  variant = 'surface',
+  radiusSize = 'xl',
 }: {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   padded?: boolean;
+  variant?: CardVariant;
+  radiusSize?: 'md' | 'lg' | 'xl' | 'pill';
 }) {
   const theme = useTheme();
+
+  const variantStyles: Record<CardVariant, { bg: string; text: string; border: string }> = {
+    surface: { bg: theme.colors.surface, text: theme.colors.text, border: theme.colors.border },
+    purple: { bg: theme.colors.pastelPurple, text: theme.colors.pastelPurpleText, border: 'transparent' },
+    yellow: { bg: theme.colors.pastelYellow, text: theme.colors.pastelYellowText, border: 'transparent' },
+    green: { bg: theme.colors.pastelGreen, text: theme.colors.pastelGreenText, border: 'transparent' },
+    blue: { bg: theme.colors.pastelBlue, text: theme.colors.pastelBlueText, border: 'transparent' },
+    pink: { bg: theme.colors.pastelPink, text: theme.colors.pastelPinkText, border: 'transparent' },
+    dark: { bg: theme.colors.darkCapsule, text: '#FFFFFF', border: 'transparent' },
+  };
+
+  const current = variantStyles[variant];
+
   return (
     <View
       style={[
         {
-          backgroundColor: theme.colors.surface,
-          borderRadius: theme.radius.lg,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: theme.colors.border,
+          backgroundColor: current.bg,
+          borderRadius: theme.radius[radiusSize],
+          borderWidth: variant === 'surface' ? StyleSheet.hairlineWidth : 0,
+          borderColor: current.border,
           padding: padded ? theme.spacing.lg : 0,
         },
         style,
@@ -89,6 +121,162 @@ export function Card({
     >
       {children}
     </View>
+  );
+}
+
+/** Specialized Bento Box card with rounded pill tag and clean vector icon */
+export function BentoCard({
+  title,
+  subtitle,
+  tagLabel,
+  tagTone = 'purple',
+  variant = 'purple',
+  icon,
+  children,
+  onPress,
+  style,
+}: {
+  title: string;
+  subtitle?: string;
+  tagLabel?: string;
+  tagTone?: 'purple' | 'yellow' | 'green' | 'blue' | 'pink' | 'dark' | 'neutral';
+  variant?: CardVariant;
+  icon?: IconName;
+  children?: React.ReactNode;
+  onPress?: () => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const theme = useTheme();
+
+  const iconColors: Record<CardVariant, string> = {
+    surface: theme.colors.text,
+    purple: theme.colors.pastelPurpleText,
+    yellow: theme.colors.pastelYellowText,
+    green: theme.colors.pastelGreenText,
+    blue: theme.colors.pastelBlueText,
+    pink: theme.colors.pastelPinkText,
+    dark: '#FFFFFF',
+  };
+
+  const cardContent = (
+    <Card variant={variant} radiusSize="xl" style={style}>
+      <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <View style={{ flex: 1, paddingRight: theme.spacing.sm }}>
+          {tagLabel ? (
+            <>
+              <Badge label={tagLabel} tone={tagTone} />
+              <Spacer size={theme.spacing.sm} />
+            </>
+          ) : null}
+          <Txt variant="heading" style={{ fontSize: 20, fontWeight: '700' }}>
+            {title}
+          </Txt>
+          {subtitle ? (
+            <Txt variant="caption" style={{ opacity: 0.8, marginTop: 4 }}>
+              {subtitle}
+            </Txt>
+          ) : null}
+        </View>
+        {icon ? (
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: 'rgba(255, 255, 255, 0.4)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name={icon} size={22} color={iconColors[variant]} />
+          </View>
+        ) : null}
+      </Row>
+      {children ? <Spacer size={theme.spacing.md} /> : null}
+      {children}
+    </Card>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
+        {cardContent}
+      </Pressable>
+    );
+  }
+
+  return cardContent;
+}
+
+/** Header Bar matching reference mobile screen design */
+export function HeaderBar({
+  title,
+  subtitle,
+  avatarText = 'SB',
+  onActionPress,
+  actionIcon = 'search-outline',
+}: {
+  title: string;
+  subtitle?: string;
+  avatarText?: string;
+  onActionPress?: () => void;
+  actionIcon?: IconName;
+}) {
+  const theme = useTheme();
+
+  return (
+    <Row style={{ justifyContent: 'space-between', marginBottom: theme.spacing.lg }}>
+      <Row gap={theme.spacing.md}>
+        {/* User avatar circle */}
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: theme.colors.pastelPurple,
+            borderWidth: 1.5,
+            borderColor: theme.colors.border,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.pastelPurpleText }}>
+            {avatarText}
+          </Text>
+        </View>
+        <View>
+          <Txt variant="heading" style={{ fontSize: 18, fontWeight: '700' }}>
+            {title}
+          </Txt>
+          {subtitle ? (
+            <Txt variant="caption" color="muted">
+              {subtitle}
+            </Txt>
+          ) : null}
+        </View>
+      </Row>
+
+      {onActionPress ? (
+        <Pressable
+          onPress={onActionPress}
+          style={({ pressed }) => [
+            {
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: theme.colors.surface,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: theme.colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.8 : 1,
+            },
+          ]}
+        >
+          <Ionicons name={actionIcon} size={20} color={theme.colors.text} />
+        </Pressable>
+      ) : null}
+    </Row>
   );
 }
 
@@ -177,36 +365,45 @@ export function Button({
   loading = false,
   style,
   size = 'medium',
+  icon,
   accessibilityLabel,
 }: {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'success' | 'yellow' | 'purple' | 'pill';
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
   size?: 'small' | 'medium' | 'large';
+  icon?: IconName;
   accessibilityLabel?: string;
 }) {
   const theme = useTheme();
   const inactive = disabled || loading;
 
   const background: Record<string, string> = {
-    primary: theme.colors.primary,
+    primary: theme.colors.darkCapsule,
     secondary: theme.colors.surfaceAlt,
     ghost: 'transparent',
     danger: theme.colors.danger,
     success: theme.colors.success,
-  };
-  const foreground: Record<string, string> = {
-    primary: theme.colors.primaryText,
-    secondary: theme.colors.text,
-    ghost: theme.colors.primary,
-    danger: '#FFFFFF',
-    success: '#FFFFFF',
+    yellow: theme.colors.pastelYellow,
+    purple: theme.colors.pastelPurple,
+    pill: theme.colors.surface,
   };
 
-  const heights = { small: MIN_TOUCH_TARGET, medium: 50, large: 58 };
+  const foreground: Record<string, string> = {
+    primary: '#FFFFFF',
+    secondary: theme.colors.text,
+    ghost: theme.colors.text,
+    danger: '#FFFFFF',
+    success: '#FFFFFF',
+    yellow: theme.colors.pastelYellowText,
+    purple: theme.colors.pastelPurpleText,
+    pill: theme.colors.text,
+  };
+
+  const heights = { small: MIN_TOUCH_TARGET, medium: 50, large: 56 };
 
   return (
     <Pressable
@@ -219,25 +416,26 @@ export function Button({
         {
           backgroundColor: background[variant],
           minHeight: heights[size],
-          borderRadius: theme.radius.md,
+          borderRadius: variant === 'pill' ? theme.radius.pill : theme.radius.lg,
           alignItems: 'center',
           justifyContent: 'center',
           flexDirection: 'row',
           paddingHorizontal: theme.spacing.lg,
           gap: theme.spacing.sm,
           opacity: inactive ? 0.5 : pressed ? 0.85 : 1,
-          borderWidth: variant === 'ghost' ? StyleSheet.hairlineWidth : 0,
+          borderWidth: variant === 'ghost' || variant === 'pill' ? StyleSheet.hairlineWidth : 0,
           borderColor: theme.colors.border,
         },
         style,
       ]}
     >
       {loading ? <ActivityIndicator size="small" color={foreground[variant]} /> : null}
+      {icon ? <Ionicons name={icon} size={18} color={foreground[variant]} /> : null}
       <Text
         style={{
           color: foreground[variant],
           fontWeight: '700',
-          fontSize: size === 'large' ? 17 : 15,
+          fontSize: size === 'large' ? 16 : 14,
         }}
       >
         {title}
@@ -251,11 +449,13 @@ export function Field({
   error,
   hint,
   style,
+  icon,
   ...inputProps
 }: TextInputProps & {
   label?: string;
   error?: string;
   hint?: string;
+  icon?: IconName;
   style?: StyleProp<ViewStyle>;
 }) {
   const theme = useTheme();
@@ -266,21 +466,29 @@ export function Field({
           {label}
         </Txt>
       ) : null}
-      <TextInput
-        placeholderTextColor={theme.colors.textMuted}
-        accessibilityLabel={label}
-        {...inputProps}
+      <Row
         style={{
-          minHeight: MIN_TOUCH_TARGET + 4,
+          minHeight: MIN_TOUCH_TARGET + 6,
           borderWidth: StyleSheet.hairlineWidth,
           borderColor: error ? theme.colors.danger : theme.colors.border,
           backgroundColor: theme.colors.surface,
-          borderRadius: theme.radius.md,
+          borderRadius: theme.radius.lg,
           paddingHorizontal: theme.spacing.md,
-          fontSize: 16, // 16+ stops iOS zooming the page on focus
-          color: theme.colors.text,
         }}
-      />
+      >
+        {icon ? <Ionicons name={icon} size={18} color={theme.colors.textMuted} style={{ marginRight: 8 }} /> : null}
+        <TextInput
+          placeholderTextColor={theme.colors.textMuted}
+          accessibilityLabel={label}
+          {...inputProps}
+          style={{
+            flex: 1,
+            fontSize: 15,
+            color: theme.colors.text,
+            paddingVertical: 10,
+          }}
+        />
+      </Row>
       {error ? (
         <Txt variant="caption" color="danger">
           {error}
@@ -296,32 +504,42 @@ export function Field({
 
 export function Badge({
   label,
-  tone = 'neutral',
+  tone = 'purple',
 }: {
   label: string;
-  tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'primary';
+  tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'primary' | 'purple' | 'yellow' | 'green' | 'blue' | 'pink' | 'dark';
 }) {
   const theme = useTheme();
-  const colors: Record<string, string> = {
-    neutral: theme.colors.textMuted,
-    success: theme.colors.success,
-    warning: theme.colors.warning,
-    danger: theme.colors.danger,
-    primary: theme.colors.primary,
+
+  const badgeStyles: Record<string, { bg: string; text: string }> = {
+    neutral: { bg: theme.colors.surfaceAlt, text: theme.colors.textMuted },
+    success: { bg: theme.colors.pastelGreen, text: theme.colors.pastelGreenText },
+    warning: { bg: theme.colors.pastelYellow, text: theme.colors.pastelYellowText },
+    danger: { bg: `${theme.colors.danger}20`, text: theme.colors.danger },
+    primary: { bg: theme.colors.pastelPurple, text: theme.colors.pastelPurpleText },
+    purple: { bg: 'rgba(255, 255, 255, 0.65)', text: theme.colors.pastelPurpleText },
+    yellow: { bg: 'rgba(255, 255, 255, 0.65)', text: theme.colors.pastelYellowText },
+    green: { bg: 'rgba(255, 255, 255, 0.65)', text: theme.colors.pastelGreenText },
+    blue: { bg: 'rgba(255, 255, 255, 0.65)', text: theme.colors.pastelBlueText },
+    pink: { bg: 'rgba(255, 255, 255, 0.65)', text: theme.colors.pastelPinkText },
+    dark: { bg: 'rgba(255, 255, 255, 0.2)', text: '#FFFFFF' },
   };
-  const color = colors[tone];
+
+  const current = badgeStyles[tone] ?? badgeStyles.neutral;
 
   return (
     <View
       style={{
         alignSelf: 'flex-start',
-        paddingHorizontal: theme.spacing.sm,
-        paddingVertical: 3,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
         borderRadius: theme.radius.pill,
-        backgroundColor: `${color}1A`, // ~10% alpha
+        backgroundColor: current.bg,
       }}
     >
-      <Text style={{ color, fontSize: 11, fontWeight: '700' }}>{label}</Text>
+      <Text style={{ color: current.text, fontSize: 11, fontWeight: '700', letterSpacing: 0.2 }}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -340,55 +558,55 @@ export function QtyStepper({
 }) {
   const theme = useTheme();
 
-  const button = (label: string, onPress: () => void, accessibilityLabel: string) => (
+  const button = (icon: IconName, onPress: () => void, accessibilityLabel: string) => (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       style={({ pressed }) => ({
-        width: MIN_TOUCH_TARGET,
-        height: MIN_TOUCH_TARGET,
+        width: 38,
+        height: 38,
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: theme.radius.sm,
+        borderRadius: 19,
         backgroundColor: theme.colors.surfaceAlt,
         opacity: disabled ? 0.4 : pressed ? 0.7 : 1,
       })}
     >
-      <Text style={{ fontSize: 22, fontWeight: '600', color: theme.colors.text }}>{label}</Text>
+      <Ionicons name={icon} size={18} color={theme.colors.text} />
     </Pressable>
   );
 
   return (
-    <Row gap={theme.spacing.sm}>
-      {button('−', onDecrease, 'Decrease quantity')}
+    <Row gap={theme.spacing.xs}>
+      {button('remove', onDecrease, 'Decrease quantity')}
       <Text
         accessibilityLabel={`Quantity ${quantity}`}
         style={{
-          minWidth: 34,
+          minWidth: 28,
           textAlign: 'center',
-          fontSize: 17,
+          fontSize: 16,
           fontWeight: '700',
           color: theme.colors.text,
         }}
       >
         {quantity}
       </Text>
-      {button('+', onIncrease, 'Increase quantity')}
+      {button('add', onIncrease, 'Increase quantity')}
     </Row>
   );
 }
 
 // ---------------------------------------------------------------------------
-// The three states every data screen must have (guide §9.6)
+// States
 // ---------------------------------------------------------------------------
 
 export function LoadingState({ label = 'Loading…' }: { label?: string }) {
   const theme = useTheme();
   return (
     <View style={styles.centered}>
-      <ActivityIndicator size="large" color={theme.colors.primary} />
+      <ActivityIndicator size="large" color={theme.colors.text} />
       <Spacer size={theme.spacing.md} />
       <Txt color="muted">{label}</Txt>
     </View>
@@ -396,13 +614,13 @@ export function LoadingState({ label = 'Loading…' }: { label?: string }) {
 }
 
 export function EmptyState({
-  icon = '📦',
+  icon = 'cube-outline',
   title,
   message,
   actionLabel,
   onAction,
 }: {
-  icon?: string;
+  icon?: IconName;
   title: string;
   message?: string;
   actionLabel?: string;
@@ -411,7 +629,7 @@ export function EmptyState({
   const theme = useTheme();
   return (
     <View style={[styles.centered, { padding: theme.spacing.xl }]}>
-      <Text style={{ fontSize: 44 }}>{icon}</Text>
+      <Ionicons name={icon} size={48} color={theme.colors.textMuted} />
       <Spacer size={theme.spacing.md} />
       <Txt variant="heading" align="center">
         {title}
@@ -443,7 +661,7 @@ export function ErrorState({
 }) {
   return (
     <EmptyState
-      icon="⚠️"
+      icon="alert-circle-outline"
       title="Couldn't load this"
       message={message}
       actionLabel={onRetry ? 'Try again' : undefined}
@@ -462,7 +680,7 @@ export function ErrorBanner({ message, onDismiss }: { message: string; onDismiss
       accessibilityLabel={onDismiss ? 'Dismiss error' : undefined}
       style={{
         backgroundColor: `${theme.colors.danger}1A`,
-        borderRadius: theme.radius.md,
+        borderRadius: theme.radius.lg,
         padding: theme.spacing.md,
         borderLeftWidth: 3,
         borderLeftColor: theme.colors.danger,

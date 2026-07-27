@@ -67,6 +67,7 @@ export class Cart {
   readonly items: readonly CartItem[];
   readonly discount: Discount;
   readonly customerName: string | null;
+  private readonly _totals: CartTotals;
 
   constructor(
     items: readonly CartItem[] = [],
@@ -84,6 +85,7 @@ export class Cart {
     this.items = Object.freeze([...items]);
     this.discount = Object.freeze({ ...discount });
     this.customerName = customerName?.trim() || null;
+    this._totals = this.computeTotals();
     Object.freeze(this);
   }
 
@@ -229,11 +231,15 @@ export class Cart {
     return this.items.filter((i) => i.exceedsStock());
   }
 
+  totals(): CartTotals {
+    return this._totals;
+  }
+
   /**
    * Full breakdown. Computed in one pass so every figure is mutually
    * consistent by construction.
    */
-  totals(): CartTotals {
+  private computeTotals(): CartTotals {
     const lineTotals = this.items.map((i) => i.lineTotal());
     const subtotal = add(...lineTotals);
     const discount = this.discountAmount();

@@ -10,6 +10,7 @@ import React, { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { invoiceRepository } from '../../data';
 import { useAsync } from '../hooks/useAsync';
 import { useCheckout } from '../hooks/useCheckout';

@@ -1,15 +1,14 @@
 /**
- * Bottom tabs with a prominent centre Scan button (guide §11), and a stack
- * inside each tab for drill-downs.
- *
- * Every screen is wrapped in its own ErrorBoundary so one broken screen can't
- * take the whole till down (guide §9.4).
+ * Bottom tabs with a prominent centre Scan button and floating dark capsule navigation bar
+ * inspired by modern mobile designs (guide §11).
  */
 
 import React from 'react';
-import { Platform, Text, View } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { ErrorBoundary } from '../ui/components/ErrorBoundary';
 import { useTheme } from '../ui/hooks/useResponsive';
 import { useCartStore } from '../store/cartStore';
@@ -39,13 +38,6 @@ const ProductsStack = createNativeStackNavigator<ProductsStackParamList>();
 const BillsStack = createNativeStackNavigator<BillsStackParamList>();
 const MoreStack = createNativeStackNavigator<MoreStackParamList>();
 
-/**
- * Wraps a screen so a render crash inside it stays contained.
- *
- * These MUST be created once at module scope, not inline in a navigator's
- * render. A fresh component identity on every render makes React treat it as a
- * different type and remount the screen, wiping its state mid-sale.
- */
 function guarded<P extends object>(Component: React.ComponentType<P>, label: string) {
   return function Guarded(props: P) {
     return (
@@ -74,6 +66,7 @@ function useStackOptions() {
     headerStyle: { backgroundColor: theme.colors.surface },
     headerTintColor: theme.colors.text,
     headerTitleStyle: { fontWeight: '700' as const },
+    headerShadowVisible: false,
     contentStyle: { backgroundColor: theme.colors.background },
   };
 }
@@ -85,7 +78,7 @@ function HomeNavigator() {
       <HomeStack.Screen
         name="Dashboard"
         component={GuardedDashboard}
-        options={{ title: 'QuickBill' }}
+        options={{ headerShown: false }}
       />
       <HomeStack.Screen
         name="Reports"
@@ -141,7 +134,7 @@ function MoreNavigator() {
       <MoreStack.Screen
         name="MoreMenu"
         component={GuardedMore}
-        options={{ title: 'More' }}
+        options={{ headerShown: false }}
       />
       <MoreStack.Screen
         name="Settings"
@@ -162,101 +155,161 @@ function MoreNavigator() {
   );
 }
 
-function TabIcon({ icon, focused, color }: { icon: string; focused: boolean; color: string }) {
-  return <Text style={{ fontSize: focused ? 24 : 21, color }}>{icon}</Text>;
+/** Floating Dark Capsule Bottom Navigation Bar (Matching uploaded mobile design reference with safe area support) */
+function FloatingCapsuleTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const cartCount = useCartStore((s) => s.cart.items.length);
+
+  type TabIconName = React.ComponentProps<typeof Ionicons>['name'];
+  const tabIcons: Record<string, { outline: TabIconName; filled: TabIconName }> = {
+    HomeTab: { outline: 'grid-outline', filled: 'grid' },
+    ProductsTab: { outline: 'cube-outline', filled: 'cube' },
+    ScanTab: { outline: 'scan-outline', filled: 'scan' },
+    BillsTab: { outline: 'receipt-outline', filled: 'receipt' },
+    MoreTab: { outline: 'person-outline', filled: 'person' },
+  };
+
+  const bottomMargin = Math.max(insets.bottom, 12);
+
+  return (
+    <View style={[styles.floatingContainer, { bottom: bottomMargin }]} pointerEvents="box-none">
+      <View
+        style={[
+          styles.capsule,
+          {
+            backgroundColor: theme.colors.darkCapsule,
+          },
+        ]}
+      >
+        {state.routes.map((route, index) => {
+          const isFocused = state.index === index;
+
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
+
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name);
+            }
+          };
+
+          const iconConfig = tabIcons[route.name] ?? { outline: 'apps-outline', filled: 'apps' };
+          const iconName = isFocused ? iconConfig.filled : iconConfig.outline;
+          const isScan = route.name === 'ScanTab';
+          const isBills = route.name === 'BillsTab';
+
+          return (
+            <Pressable
+              key={route.key}
+              onPress={onPress}
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              style={styles.tabItem}
+            >
+              <View
+                style={[
+                  styles.iconCircle,
+                  isFocused && styles.activeIconCircle,
+                  isScan && !isFocused && styles.scanButtonInactive,
+                  isScan && isFocused && styles.scanButtonActive,
+                ]}
+              >
+                <Ionicons
+                  name={iconName}
+                  size={isScan ? 22 : 20}
+                  color={isFocused ? '#16171D' : '#9CA3AF'}
+                />
+
+                {/* Unfinished sale badge indicator on Bills icon */}
+                {isBills && cartCount > 0 ? (
+                  <View style={styles.badgeDot}>
+                    <Text style={styles.badgeText}>{cartCount}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 export function MainTabs() {
-  const theme = useTheme();
-  const isAdmin = useIsAdmin();
-  const cartCount = useCartStore((s) => s.cart.items.length);
-
   return (
     <Tab.Navigator
+      tabBar={(props) => <FloatingCapsuleTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textMuted,
-        tabBarStyle: {
-          backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.border,
-          height: Platform.OS === 'ios' ? 86 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
-          paddingTop: 6,
-        },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
     >
-      <Tab.Screen
-        name="HomeTab"
-        component={HomeNavigator}
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon icon="🏠" focused={focused} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="ProductsTab"
-        component={ProductsNavigator}
-        options={{
-          title: 'Products',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon icon="📦" focused={focused} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="ScanTab"
-        component={GuardedScan}
-        options={{
-          title: 'Scan',
-          // Raised centre button — the action the app exists for.
-          tabBarIcon: ({ focused }) => (
-            <View
-              style={{
-                width: 58,
-                height: 58,
-                borderRadius: 29,
-                marginTop: -22,
-                backgroundColor: theme.colors.primary,
-                alignItems: 'center',
-                justifyContent: 'center',
-                shadowColor: '#000',
-                shadowOpacity: 0.25,
-                shadowRadius: 6,
-                shadowOffset: { width: 0, height: 3 },
-                elevation: 6,
-              }}
-            >
-              <Text style={{ fontSize: focused ? 27 : 25 }}>📷</Text>
-            </View>
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="BillsTab"
-        component={BillsNavigator}
-        options={{
-          title: 'Bills',
-          // Badge shows an unfinished sale from anywhere in the app.
-          tabBarBadge: cartCount > 0 ? cartCount : undefined,
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon icon="🧾" focused={focused} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="MoreTab"
-        component={MoreNavigator}
-        options={{
-          title: isAdmin ? 'More' : 'Account',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon icon="⚙️" focused={focused} color={color} />
-          ),
-        }}
-      />
+      <Tab.Screen name="HomeTab" component={HomeNavigator} />
+      <Tab.Screen name="ProductsTab" component={ProductsNavigator} />
+      <Tab.Screen name="ScanTab" component={GuardedScan} />
+      <Tab.Screen name="BillsTab" component={BillsNavigator} />
+      <Tab.Screen name="MoreTab" component={MoreNavigator} />
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  floatingContainer: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    alignItems: 'center',
+  },
+  capsule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 24,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    width: '100%',
+    maxWidth: 440,
+    height: 66,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconCircle: {
+    width: 48,
+    height: 44,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeIconCircle: {
+    backgroundColor: '#FFFFFF',
+  },
+  scanButtonInactive: {
+    backgroundColor: '#2A2C38',
+  },
+  scanButtonActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  badgeDot: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+});

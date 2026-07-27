@@ -4,9 +4,6 @@
  * Every figure shown here comes from `Cart.totals()` — the screen does no
  * arithmetic of its own, which is what guarantees it agrees with the invoice
  * and the printed receipt.
- *
- * On a tablet it splits into two panes: the item list on the left, the running
- * total on the right (guide §7) — rearranged, not just stretched.
  */
 
 import React, { useState } from 'react';
@@ -55,10 +52,10 @@ export function CartScreen() {
     return (
       <Screen>
         <EmptyState
-          icon="🛒"
-          title="The bill is empty"
-          message="Scan a barcode or pick a product to start a sale."
-          actionLabel="Start scanning"
+          icon="cart-outline"
+          title="Your bill is empty"
+          message="Scan a product barcode or select products to begin a sale."
+          actionLabel="Open Scanner"
           onAction={() => navigation.navigate('Main', { screen: 'ScanTab' })}
         />
       </Screen>
@@ -69,8 +66,8 @@ export function CartScreen() {
     <FlatList
       data={totals.lines}
       keyExtractor={(line) => line.item.barcode}
-      contentContainerStyle={{ padding: theme.spacing.lg, gap: theme.spacing.md }}
-      ItemSeparatorComponent={() => <Spacer size={theme.spacing.sm} />}
+      contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: 20, gap: theme.spacing.md }}
+      ItemSeparatorComponent={() => <Spacer size={theme.spacing.xs} />}
       renderItem={({ item: line }) => (
         <CartLine
           line={line}
@@ -118,7 +115,9 @@ export function CartScreen() {
   return (
     <Screen>
       <View style={{ flex: 1 }}>{itemList}</View>
-      <View style={{ borderTopWidth: 1, borderTopColor: theme.colors.border }}>{summary}</View>
+      <View style={{ borderTopWidth: 1, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface }}>
+        {summary}
+      </View>
     </Screen>
   );
 }
@@ -140,10 +139,10 @@ function CartLine({
   const item: CartItem = line.item;
 
   return (
-    <Card>
+    <Card variant="surface" radiusSize="xl">
       <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <View style={{ flex: 1, paddingRight: theme.spacing.md }}>
-          <Txt variant="label" numberOfLines={2}>
+          <Txt variant="label" style={{ fontSize: 16, fontWeight: '700' }} numberOfLines={2}>
             {item.name}
           </Txt>
           <Spacer size={2} />
@@ -154,14 +153,15 @@ function CartLine({
           {item.exceedsStock() ? (
             <>
               <Spacer size={theme.spacing.xs} />
-              {/* A warning, not a block — see BillingService.allowOverSell. */}
               <Badge label={`Only ${item.availableStock} in stock`} tone="warning" />
             </>
           ) : null}
         </View>
 
         <View style={{ alignItems: 'flex-end' }}>
-          <Txt variant="heading">{formatMoney(line.lineTotal, currency)}</Txt>
+          <Txt variant="heading" style={{ fontSize: 17, fontWeight: '700' }}>
+            {formatMoney(line.lineTotal, currency)}
+          </Txt>
           {line.discountShare > 0 ? (
             <Txt variant="caption" color="success">
               −{formatMoney(line.discountShare, currency)}
@@ -172,7 +172,7 @@ function CartLine({
 
       <Spacer size={theme.spacing.md} />
       <Divider />
-      <Spacer size={theme.spacing.md} />
+      <Spacer size={theme.spacing.sm} />
 
       <Row style={{ justifyContent: 'space-between' }}>
         <QtyStepper quantity={item.quantity} onIncrease={onIncrease} onDecrease={onDecrease} />
@@ -232,7 +232,7 @@ function SummaryPane({
     } else {
       const amount = parseMoney(text);
       if (amount === null || amount < 0) {
-        setError('Enter a valid amount.');
+        setError('Enter valid amount.');
         return;
       }
       onApplyDiscount({ type: 'amount', value: amount });
@@ -240,39 +240,39 @@ function SummaryPane({
   };
 
   const line = (label: string, value: string, strong = false, tone?: 'success') => (
-    <Row style={{ justifyContent: 'space-between', paddingVertical: 3 }}>
+    <Row style={{ justifyContent: 'space-between', paddingVertical: 4 }}>
       <Txt variant={strong ? 'heading' : 'body'} color={strong ? undefined : 'muted'}>
         {label}
       </Txt>
-      <Txt variant={strong ? 'title' : 'body'} color={tone}>
+      <Txt variant={strong ? 'title' : 'body'} color={tone} style={strong ? { fontSize: 22 } : undefined}>
         {value}
       </Txt>
     </Row>
   );
 
   return (
-    <View style={{ padding: theme.spacing.lg }}>
+    <View style={{ padding: theme.spacing.lg, paddingBottom: 95 }}>
       {line('Subtotal', formatMoney(totals.subtotal, currency))}
       {totals.discount > 0
         ? line('Discount', `−${formatMoney(totals.discount, currency)}`, false, 'success')
         : null}
       {totals.tax > 0 ? line('Tax', formatMoney(totals.tax, currency)) : null}
 
-      <Spacer size={theme.spacing.sm} />
+      <Spacer size={theme.spacing.xs} />
       <Divider />
-      <Spacer size={theme.spacing.sm} />
+      <Spacer size={theme.spacing.xs} />
 
       {line('Total', formatMoney(totals.grandTotal, currency), true)}
 
       <Spacer size={theme.spacing.md} />
 
       {showDiscount ? (
-        <Card style={{ backgroundColor: theme.colors.surfaceAlt }}>
+        <Card variant="surface" radiusSize="lg" style={{ backgroundColor: theme.colors.surfaceAlt }}>
           <Row gap={theme.spacing.sm}>
             <Button
               title="%"
               size="small"
-              variant={mode === 'percent' ? 'primary' : 'secondary'}
+              variant={mode === 'percent' ? 'purple' : 'secondary'}
               onPress={() => {
                 setMode('percent');
                 applyDiscount(raw, 'percent');
@@ -281,7 +281,7 @@ function SummaryPane({
             <Button
               title={currency}
               size="small"
-              variant={mode === 'amount' ? 'primary' : 'secondary'}
+              variant={mode === 'amount' ? 'purple' : 'secondary'}
               onPress={() => {
                 setMode('amount');
                 applyDiscount(raw, 'amount');
@@ -299,14 +299,14 @@ function SummaryPane({
           </Row>
         </Card>
       ) : (
-        <Button title="Add discount" variant="ghost" size="small" onPress={() => setShowDiscount(true)} />
+        <Button title="Add discount" icon="pricetag-outline" variant="ghost" size="small" onPress={() => setShowDiscount(true)} />
       )}
 
       <Spacer size={theme.spacing.md} />
 
-      <Button title="Charge" size="large" onPress={onCheckout} />
-      <Spacer size={theme.spacing.sm} />
-      <Button title="Clear bill" variant="ghost" size="small" onPress={onClear} />
+      <Button title="Charge & Collect →" size="large" variant="primary" onPress={onCheckout} />
+      <Spacer size={theme.spacing.xs} />
+      <Button title="Clear Bill" variant="ghost" size="small" onPress={onClear} />
     </View>
   );
 }

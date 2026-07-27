@@ -59,6 +59,16 @@ export function ScanScreen() {
   const scanner = useScanner({ onFound: handleFound, onNotFound: handleNotFound });
   const { resume, pause } = scanner;
 
+  // Always-stable barcode handler — never swap the CameraView prop between
+  // function and undefined, because expo-camera v57 won't re-register the
+  // barcode scanner listener reliably.
+  const stableOnBarcodeScanned = useCallback(
+    (result: { data: string }) => {
+      void scanner.handleBarcodeScanned(result);
+    },
+    [scanner.handleBarcodeScanned],
+  );
+
   // Stop the camera when the tab loses focus
   useFocusEffect(
     useCallback(() => {
@@ -172,9 +182,7 @@ export function ScanScreen() {
         style={StyleSheet.absoluteFill}
         facing="back"
         enableTorch={scanner.torchOn}
-        onBarcodeScanned={
-          scanner.isActive ? (result) => void scanner.handleBarcodeScanned(result) : undefined
-        }
+        onBarcodeScanned={stableOnBarcodeScanned}
         barcodeScannerSettings={{ barcodeTypes: [...SUPPORTED_BARCODE_TYPES] }}
       />
 

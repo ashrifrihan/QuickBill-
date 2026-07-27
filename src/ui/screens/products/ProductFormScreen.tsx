@@ -422,6 +422,15 @@ function BarcodeScannerModal({
     autoStart: visible,
   });
 
+  // Always-stable barcode handler — never toggle the prop between function
+  // and undefined; expo-camera v57 won't re-register the listener reliably.
+  const stableOnBarcodeScanned = useCallback(
+    (result: { data: string }) => {
+      void scanner.handleBarcodeScanned(result);
+    },
+    [scanner.handleBarcodeScanned],
+  );
+
   // Resume scanner when modal opens
   useEffect(() => {
     if (visible) {
@@ -441,9 +450,7 @@ function BarcodeScannerModal({
             style={StyleSheet.absoluteFill}
             facing="back"
             enableTorch={scanner.torchOn}
-            onBarcodeScanned={
-              scanner.isActive ? (result) => void scanner.handleBarcodeScanned(result) : undefined
-            }
+            onBarcodeScanned={stableOnBarcodeScanned}
             barcodeScannerSettings={{ barcodeTypes: [...SUPPORTED_BARCODE_TYPES] }}
           />
         ) : null}

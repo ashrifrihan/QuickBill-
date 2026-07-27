@@ -1,14 +1,14 @@
 /**
- * The scan→cart loop (guide §8.2).
+ * The scan→cart loop (guide §8.2) — professional POS workflow.
  *
  * Three cases the screen must handle without ever crashing or stalling:
  *  - permission not yet asked / denied → friendly screen, never a crash
- *  - barcode found     → add to cart, haptic confirm, keep scanning
- *  - barcode not found → straight to Add Product with the code pre-filled
+ *  - barcode found     → show product details with qty stepper, "Add to Bill"
+ *  - barcode not found → straight to Add Product with the code pre-filled & locked
  */
 
 import React, { useCallback, useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { CameraView } from 'expo-camera';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -32,19 +32,22 @@ export function ScanScreen() {
   const totals = useCartTotals();
   const currency = useSettingsStore((s) => s.settings.currency);
 
-  const [lastAdded, setLastAdded] = useState<Product | null>(null);
+  const [foundProduct, setFoundProduct] = useState<Product | null>(null);
+  const [qty, setQty] = useState(1);
+  const [manualBarcode, setManualBarcode] = useState('');
+  const [showManualEntry, setShowManualEntry] = useState(false);
 
   const handleFound = useCallback(
     (product: Product) => {
-      addProduct(product, 1);
-      setLastAdded(product);
+      setFoundProduct(product);
+      setQty(1);
     },
-    [addProduct],
+    [],
   );
 
   const handleNotFound = useCallback(
     (barcode: string) => {
-      // The real-world flow: add it once, recognised forever after.
+      // Navigate to product form with barcode pre-filled and locked
       navigation.navigate('Main', {
         screen: 'ProductsTab',
         params: { screen: 'ProductForm', params: { barcode } },
@@ -56,14 +59,49 @@ export function ScanScreen() {
   const scanner = useScanner({ onFound: handleFound, onNotFound: handleNotFound });
   const { resume, pause } = scanner;
 
-  // Stop the camera when the tab loses focus — it drains battery and holds
-  // the hardware open otherwise.
+  // Stop the camera when the tab loses focus
   useFocusEffect(
     useCallback(() => {
       resume();
+      setFoundProduct(null);
       return () => pause();
     }, [resume, pause]),
   );
+
+  const handleAddToBill = useCallback(() => {
+    if (!foundProduct) return;
+    addProduct(foundProduct, qty);
+    setFoundProduct(null);
+    setQty(1);
+    resume();
+  }, [foundProduct, qty, addProduct, resume]);
+
+  const handleScanAgain = useCallback(() => {
+    setFoundProduct(null);
+    setQty(1);
+    resume();
+  }, [resume]);
+
+  const handleManualSearch = useCallback(async () => {
+    const barcode = manualBarcode.trim();
+    if (!barcode) return;
+
+    const { productService } = await import('../../services/ProductService');
+    const product = await productService.findByBarcode(barcode);
+    if (product) {
+      setFoundProduct(product);
+      setQty(1);
+      setShowManualEntry(false);
+      setManualBarcode('');
+    } else {
+      setShowManualEntry(false);
+      setManualBarcode('');
+      navigation.navigate('Main', {
+        screen: 'ProductsTab',
+        params: { screen: 'ProductForm', params: { barcode } },
+      });
+    }
+  }, [manualBarcode, navigation]);
 
   // --- Permission states (never a crash, guide §8.2) ----------------------
 
@@ -71,7 +109,7 @@ export function ScanScreen() {
     return (
       <Screen>
         <View style={styles.centered}>
-          <Txt color="muted">Checking camera permission…</Txt>
+          <Txt color="muted">Checking camera permission...</Txt>
         </View>
       </Screen>
     );
@@ -93,8 +131,6 @@ export function ScanScreen() {
           <Spacer size={theme.spacing.lg} />
 
           {scanner.permissionDenied ? (
-            // Permanently denied: the in-app prompt won't show again, so send
-            // them to system settings rather than a dead button.
             <>
               <Txt variant="label" color="danger">
                 Camera access was turned off for QuickBill.
@@ -110,12 +146,9 @@ export function ScanScreen() {
           <Button
             title="Enter barcode manually instead"
             variant="ghost"
-            onPress={() =>
-              navigation.navigate('Main', {
-                screen: 'ProductsTab',
-                params: { screen: 'ProductList' },
-              })
-            }
+            onPress={() => {
+              setShowManualEntry(true);
+            }}
           />
         </Card>
       </Screen>
@@ -138,7 +171,7 @@ export function ScanScreen() {
       <CameraView
         style={StyleSheet.absoluteFill}
         facing="back"
-        // Handing `undefined` while locked stops the callback firing at all.
+        enableTorch={scanner.torchOn}
         onBarcodeScanned={
           scanner.isActive ? (result) => void scanner.handleBarcodeScanned(result) : undefined
         }
@@ -146,19 +179,89 @@ export function ScanScreen() {
       />
 
       <View style={styles.overlay} pointerEvents="box-none">
-        {/* Visual confirmation the read landed — cashiers rely on it. */}
-        <View style={[styles.frame, { borderColor: frameColor }]}>
-          <Txt variant="label" style={{ color: '#FFFFFF' }} align="center">
-            {scanner.phase === 'looking-up'
-              ? 'Looking up…'
-              : scanner.phase === 'found'
-                ? '✓ Added'
-                : scanner.phase === 'not-found'
-                  ? 'Unknown barcode'
-                  : 'Point at a barcode'}
-          </Txt>
+        {/* Top action bar */}
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={scanner.toggleTorch}
+            style={[styles.actionButton, { backgroundColor: scanner.torchOn ? '#FFFFFF' : 'rgba(0,0,0,0.5)' }]}
+          >
+            <Ionicons
+              name={scanner.torchOn ? 'flash' : 'flash-outline'}
+              size={20}
+              color={scanner.torchOn ? '#16171D' : '#FFFFFF'}
+            />
+          </Pressable>
+
+          <Pressable
+            onPress={() => setShowManualEntry(!showManualEntry)}
+            style={[styles.actionButton, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
+          >
+            <Ionicons name="keypad-outline" size={20} color="#FFFFFF" />
+          </Pressable>
         </View>
 
+        {/* Manual barcode entry fallback */}
+        {showManualEntry ? (
+          <View style={styles.manualEntryContainer}>
+            <Card style={{ backgroundColor: 'rgba(22,23,29,0.95)' }}>
+              <Txt variant="label" style={{ color: '#FFFFFF', marginBottom: 8 }}>
+                Enter barcode manually
+              </Txt>
+              <Row gap={theme.spacing.sm}>
+                <View style={{ flex: 1 }}>
+                  <TextInput
+                    value={manualBarcode}
+                    onChangeText={setManualBarcode}
+                    placeholder="e.g. 1000000000001"
+                    placeholderTextColor="rgba(255,255,255,0.4)"
+                    keyboardType="default"
+                    autoCapitalize="none"
+                    returnKeyType="search"
+                    onSubmitEditing={handleManualSearch}
+                    style={{
+                      fontSize: 15,
+                      color: '#FFFFFF',
+                      borderWidth: StyleSheet.hairlineWidth,
+                      borderColor: 'rgba(255,255,255,0.3)',
+                      borderRadius: 14,
+                      paddingHorizontal: 14,
+                      paddingVertical: 10,
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                    }}
+                  />
+                </View>
+                <Pressable
+                  onPress={handleManualSearch}
+                  style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
+                >
+                  <Ionicons name="search" size={20} color={theme.colors.primaryText} />
+                </Pressable>
+              </Row>
+              <Pressable onPress={() => { setShowManualEntry(false); setManualBarcode(''); }} style={{ marginTop: 8 }}>
+                <Txt variant="caption" style={{ color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
+                  Cancel
+                </Txt>
+              </Pressable>
+            </Card>
+          </View>
+        ) : null}
+
+        {/* Scan frame guide */}
+        {!foundProduct ? (
+          <View style={[styles.frame, { borderColor: frameColor }]}>
+            <Txt variant="label" style={{ color: '#FFFFFF' }} align="center">
+              {scanner.phase === 'looking-up'
+                ? 'Looking up...'
+                : scanner.phase === 'found'
+                  ? 'Product found'
+                  : scanner.phase === 'not-found'
+                    ? 'Unknown barcode'
+                    : 'Point at a barcode'}
+            </Txt>
+          </View>
+        ) : null}
+
+        {/* Bottom area */}
         <View style={styles.bottom} pointerEvents="box-none">
           {scanner.error ? (
             <Card style={{ marginBottom: theme.spacing.md }}>
@@ -168,24 +271,87 @@ export function ScanScreen() {
             </Card>
           ) : null}
 
-          {lastAdded ? (
-            <Card style={{ marginBottom: theme.spacing.md }}>
-              <Row style={{ justifyContent: 'space-between' }}>
-                <View style={styles.flex}>
-                  <Txt variant="label" numberOfLines={1}>
-                    {lastAdded.name}
+          {/* Found product details card with qty stepper + Add to Bill */}
+          {foundProduct ? (
+            <Card style={{ marginBottom: theme.spacing.md, backgroundColor: 'rgba(22,23,29,0.95)' }}>
+              {/* Product info */}
+              <Row gap={theme.spacing.sm} style={{ marginBottom: theme.spacing.md }}>
+                <View style={[styles.productIconContainer, { backgroundColor: theme.colors.pastelGreen }]}>
+                  <Ionicons name="checkmark-circle" size={24} color={theme.colors.pastelGreenText} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Txt variant="label" style={{ color: '#FFFFFF', fontSize: 16 }} numberOfLines={1}>
+                    {foundProduct.name}
                   </Txt>
-                  <Txt variant="caption" color="muted">
-                    {formatMoney(lastAdded.sellingPrice, currency)} · added
+                  <Txt variant="caption" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                    {foundProduct.barcode}
+                    {foundProduct.category ? ` · ${foundProduct.category}` : ''}
                   </Txt>
                 </View>
-                <Txt variant="heading" color="success">
-                  ✓
-                </Txt>
               </Row>
+
+              {/* Price and stock info */}
+              <Row style={{ justifyContent: 'space-between', marginBottom: theme.spacing.md }}>
+                <View>
+                  <Txt variant="caption" style={{ color: 'rgba(255,255,255,0.5)' }}>Selling Price</Txt>
+                  <Txt variant="heading" style={{ color: '#FFFFFF' }}>
+                    {formatMoney(foundProduct.sellingPrice, currency)}
+                  </Txt>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Txt variant="caption" style={{ color: 'rgba(255,255,255,0.5)' }}>In Stock</Txt>
+                  <Txt variant="heading" style={{ color: foundProduct.stockQty <= 0 ? '#EF4444' : '#FFFFFF' }}>
+                    {foundProduct.stockQty}
+                  </Txt>
+                </View>
+              </Row>
+
+              {/* Quantity stepper */}
+              <View style={{ alignItems: 'center', marginBottom: theme.spacing.md }}>
+                <Txt variant="caption" style={{ color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Quantity</Txt>
+                <Row gap={theme.spacing.md} style={{ alignItems: 'center' }}>
+                  <Pressable
+                    onPress={() => setQty((q) => Math.max(1, q - 1))}
+                    style={[styles.qtyButton, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
+                  >
+                    <Ionicons name="remove" size={20} color="#FFFFFF" />
+                  </Pressable>
+                  <Txt variant="heading" style={{ color: '#FFFFFF', fontSize: 24, minWidth: 40, textAlign: 'center' }}>
+                    {qty}
+                  </Txt>
+                  <Pressable
+                    onPress={() => setQty((q) => q + 1)}
+                    style={[styles.qtyButton, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
+                  >
+                    <Ionicons name="add" size={20} color="#FFFFFF" />
+                  </Pressable>
+                </Row>
+              </View>
+
+              {/* Actions */}
+              <Pressable
+                onPress={handleAddToBill}
+                style={({ pressed }) => [
+                  styles.addToBillButton,
+                  { backgroundColor: theme.colors.primary, opacity: pressed ? 0.9 : 1 },
+                ]}
+              >
+                <Ionicons name="cart-outline" size={20} color={theme.colors.primaryText} />
+                <Txt variant="label" style={{ color: theme.colors.primaryText, marginLeft: 8 }}>
+                  Add to Bill ({formatMoney(foundProduct.sellingPrice * qty, currency)})
+                </Txt>
+              </Pressable>
+
+              <Pressable onPress={handleScanAgain} style={{ marginTop: 10, alignItems: 'center' }}>
+                <Row gap={6} style={{ alignItems: 'center' }}>
+                  <Ionicons name="scan-outline" size={16} color="rgba(255,255,255,0.6)" />
+                  <Txt variant="caption" style={{ color: 'rgba(255,255,255,0.6)' }}>Scan Next Item</Txt>
+                </Row>
+              </Pressable>
             </Card>
           ) : null}
 
+          {/* Cart summary bar */}
           <Pressable
             onPress={() => navigation.navigate('Cart')}
             accessibilityRole="button"
@@ -197,7 +363,7 @@ export function ScanScreen() {
               styles.cartBar,
               {
                 backgroundColor: theme.colors.primary,
-                borderRadius: theme.radius.lg,
+                borderRadius: 14,
                 opacity: pressed ? 0.9 : 1,
               },
             ]}
@@ -223,7 +389,22 @@ export function ScanScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  overlay: { flex: 1, justifyContent: 'space-between', padding: 20, paddingTop: 80 },
+  overlay: { flex: 1, justifyContent: 'space-between', padding: 20, paddingTop: 60 },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  actionButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  manualEntryContainer: {
+    marginTop: 12,
+  },
   frame: {
     alignSelf: 'center',
     width: '85%',
@@ -240,5 +421,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     minHeight: 64,
+  },
+  productIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qtyButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addToBillButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
   },
 });

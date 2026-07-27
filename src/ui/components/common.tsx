@@ -182,7 +182,7 @@ export function BentoCard({
             style={{
               width: 44,
               height: 44,
-              borderRadius: 22,
+              borderRadius: 14,
               backgroundColor: 'rgba(255, 255, 255, 0.4)',
               alignItems: 'center',
               justifyContent: 'center',
@@ -227,12 +227,12 @@ export function HeaderBar({
   return (
     <Row style={{ justifyContent: 'space-between', marginBottom: theme.spacing.lg }}>
       <Row gap={theme.spacing.md}>
-        {/* User avatar circle */}
+        {/* User avatar rounded square */}
         <View
           style={{
             width: 44,
             height: 44,
-            borderRadius: 22,
+            borderRadius: 14,
             backgroundColor: theme.colors.pastelPurple,
             borderWidth: 1.5,
             borderColor: theme.colors.border,
@@ -263,7 +263,7 @@ export function HeaderBar({
             {
               width: 44,
               height: 44,
-              borderRadius: 22,
+              borderRadius: 14,
               backgroundColor: theme.colors.surface,
               borderWidth: StyleSheet.hairlineWidth,
               borderColor: theme.colors.border,
@@ -450,12 +450,21 @@ export function Field({
   hint,
   style,
   icon,
+  readOnly,
+  verified,
+  rightElement,
   ...inputProps
 }: TextInputProps & {
   label?: string;
   error?: string;
   hint?: string;
   icon?: IconName;
+  /** Locks the field as non-editable with a muted background. */
+  readOnly?: boolean;
+  /** Shows a green verified checkmark badge below the field. */
+  verified?: boolean;
+  /** Optional element rendered on the right side of the field row. */
+  rightElement?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   const theme = useTheme();
@@ -470,8 +479,12 @@ export function Field({
         style={{
           minHeight: MIN_TOUCH_TARGET + 6,
           borderWidth: StyleSheet.hairlineWidth,
-          borderColor: error ? theme.colors.danger : theme.colors.border,
-          backgroundColor: theme.colors.surface,
+          borderColor: error
+            ? theme.colors.danger
+            : verified
+              ? theme.colors.success
+              : theme.colors.border,
+          backgroundColor: readOnly ? theme.colors.surfaceAlt : theme.colors.surface,
           borderRadius: theme.radius.lg,
           paddingHorizontal: theme.spacing.md,
         }}
@@ -480,16 +493,26 @@ export function Field({
         <TextInput
           placeholderTextColor={theme.colors.textMuted}
           accessibilityLabel={label}
+          editable={!readOnly}
           {...inputProps}
           style={{
             flex: 1,
             fontSize: 15,
-            color: theme.colors.text,
+            color: readOnly ? theme.colors.textMuted : theme.colors.text,
             paddingVertical: 10,
+            fontWeight: readOnly ? '600' : '400',
           }}
         />
+        {rightElement}
       </Row>
-      {error ? (
+      {verified ? (
+        <Row gap={4} style={{ alignItems: 'center' }}>
+          <Ionicons name="checkmark-circle" size={14} color={theme.colors.success} />
+          <Txt variant="caption" style={{ color: theme.colors.success, fontWeight: '600' }}>
+            Scanned Successfully
+          </Txt>
+        </Row>
+      ) : error ? (
         <Txt variant="caption" color="danger">
           {error}
         </Txt>
@@ -569,7 +592,7 @@ export function QtyStepper({
         height: 38,
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 19,
+        borderRadius: 12,
         backgroundColor: theme.colors.surfaceAlt,
         opacity: disabled ? 0.4 : pressed ? 0.7 : 1,
       })}

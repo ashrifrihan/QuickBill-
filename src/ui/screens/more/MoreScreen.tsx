@@ -50,7 +50,7 @@ export function MoreScreen() {
               style={{
                 width: 40,
                 height: 40,
-                borderRadius: 20,
+                borderRadius: 12,
                 backgroundColor: theme.colors.surfaceAlt,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -89,7 +89,7 @@ export function MoreScreen() {
             style={{
               width: 64,
               height: 64,
-              borderRadius: 32,
+              borderRadius: 18,
               backgroundColor: theme.colors.pastelPurple,
               borderWidth: 1.5,
               borderColor: theme.colors.border,
@@ -175,7 +175,7 @@ export function MoreScreen() {
               style={{
                 width: 40,
                 height: 40,
-                borderRadius: 20,
+                borderRadius: 12,
                 backgroundColor: theme.colors.pastelPurple,
                 alignItems: 'center',
                 justifyContent: 'center',

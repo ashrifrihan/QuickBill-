@@ -1,6 +1,6 @@
 /**
- * Bottom tabs with a prominent centre Scan button and floating dark capsule navigation bar
- * inspired by modern mobile designs (guide §11).
+ * Bottom tabs with a prominent centre Scan button and floating dark navigation bar
+ * with rounded-square radius tab buttons for Home, Products, Scan, History & Profile (guide §11).
  */
 
 import React from 'react';
@@ -155,7 +155,7 @@ function MoreNavigator() {
   );
 }
 
-/** Floating Dark Capsule Bottom Navigation Bar (Matching uploaded mobile design reference with safe area support) */
+/** Floating Dark Capsule Bottom Navigation Bar (All tabs use rounded-square radius) */
 function FloatingCapsuleTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -212,8 +212,8 @@ function FloatingCapsuleTabBar({ state, descriptors, navigation }: BottomTabBarP
             >
               <View
                 style={[
-                  styles.iconCircle,
-                  isFocused && styles.activeIconCircle,
+                  styles.iconSquare,
+                  isFocused ? styles.activeIconSquare : styles.inactiveIconSquare,
                   isScan && !isFocused && styles.scanButtonInactive,
                   isScan && isFocused && styles.scanButtonActive,
                 ]}
@@ -267,30 +267,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 24,
-    paddingHorizontal: 12,
+    borderRadius: 20,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     width: '100%',
     maxWidth: 440,
-    height: 66,
+    height: 64,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconCircle: {
+  iconSquare: {
     width: 48,
-    height: 44,
-    borderRadius: 16,
+    height: 42,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  activeIconCircle: {
+  activeIconSquare: {
     backgroundColor: '#FFFFFF',
   },
+  inactiveIconSquare: {
+    backgroundColor: 'transparent',
+  },
   scanButtonInactive: {
-    backgroundColor: '#2A2C38',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
   },
   scanButtonActive: {
     backgroundColor: '#FFFFFF',
@@ -300,7 +303,7 @@ const styles = StyleSheet.create({
     top: 2,
     right: 2,
     backgroundColor: '#EF4444',
-    borderRadius: 10,
+    borderRadius: 6,
     minWidth: 16,
     height: 16,
     alignItems: 'center',

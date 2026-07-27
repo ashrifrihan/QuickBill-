@@ -34,16 +34,29 @@ interface UseScannerOptions {
    * scan → not found → add once → recognised forever (guide §8.2).
    */
   onNotFound?: (barcode: string) => void;
+  /**
+   * Fires on every accepted read, whatever the lookup found. Use this when the
+   * caller just wants the digits — e.g. the scanner sheet that fills the
+   * barcode field on the product form.
+   */
+  onScanned?: (barcode: string, product: Product | null) => void;
+  /**
+   * Set false to capture the barcode without hitting the database. Keeps
+   * `onFound`/`onNotFound` silent so a capture-only caller never inherits the
+   * "not found → navigate to Add Product" behaviour.
+   */
+  lookup?: boolean;
   autoStart?: boolean;
 }
 
 export function useScanner(options: UseScannerOptions = {}) {
-  const { onFound, onNotFound, autoStart = true } = options;
+  const { onFound, onNotFound, onScanned, lookup = true, autoStart = true } = options;
 
   const [permission, requestPermission] = useCameraPermissions();
   const [phase, setPhase] = useState<ScanPhase>(autoStart ? 'scanning' : 'idle');
   const [lastScan, setLastScan] = useState<ScanOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [torchOn, setTorchOn] = useState(false);
 
   // Refs, not state: these gate the very next camera frame, so they must be
   // current immediately rather than after a re-render.
@@ -58,6 +71,10 @@ export function useScanner(options: UseScannerOptions = {}) {
       mounted.current = false;
       if (unlockTimer.current) clearTimeout(unlockTimer.current);
     };
+  }, []);
+
+  const toggleTorch = useCallback(() => {
+    setTorchOn((prev) => !prev);
   }, []);
 
   const unlockAfterDelay = useCallback(() => {
@@ -104,10 +121,21 @@ export function useScanner(options: UseScannerOptions = {}) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
 
       try {
-        const product = await productService.findByBarcode(barcode);
+        const product = lookup ? await productService.findByBarcode(barcode) : null;
         if (!mounted.current) return;
 
         setLastScan({ barcode, product });
+
+        // Capture-only callers stop here: they wanted the digits, not a routing
+        // decision about whether the product exists.
+        if (!lookup) {
+          setPhase('found');
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+          onScanned?.(barcode, null);
+          return;
+        }
+
+        onScanned?.(barcode, product);
 
         if (product) {
           setPhase('found');
@@ -131,7 +159,7 @@ export function useScanner(options: UseScannerOptions = {}) {
         unlockAfterDelay();
       }
     },
-    [onFound, onNotFound, unlockAfterDelay],
+    [onFound, onNotFound, onScanned, lookup, unlockAfterDelay],
   );
 
   const permissionGranted = permission?.granted ?? false;
@@ -151,5 +179,9 @@ export function useScanner(options: UseScannerOptions = {}) {
     handleBarcodeScanned,
     resume,
     pause,
+    /** Whether the camera torch/flashlight is enabled. */
+    torchOn,
+    /** Toggles the camera torch on/off. */
+    toggleTorch,
   };
 }

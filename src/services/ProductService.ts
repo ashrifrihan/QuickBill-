@@ -104,7 +104,10 @@ export class ProductService {
       const source = new FileSystem.File(sourceUri);
       const destination = new FileSystem.File(directory, `${Date.now()}.${extension}`);
 
-      source.copy(destination);
+      // `copy()` returns a Promise. Without awaiting it here the rejection
+      // escapes this try/catch entirely and surfaces as an uncaught promise
+      // rejection instead of the graceful "save without image" fallback.
+      await source.copy(destination);
       return destination.uri;
     } catch (error) {
       // A missing photo must not block saving the product.

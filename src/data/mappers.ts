@@ -8,6 +8,7 @@
 import { Product } from '../domain/Product';
 import { Invoice, InvoiceItem, PaymentMethod, PaymentStatus } from '../domain/Invoice';
 import { User, UserRole } from '../domain/User';
+import { logger } from '../errors/logger';
 
 export interface ProductRow {
   id: number;
@@ -99,6 +100,34 @@ export function toInvoiceItem(row: InvoiceItemRow): InvoiceItem {
   });
 }
 
+const PAYMENT_STATUSES: PaymentStatus[] = ['paid', 'unpaid', 'partial', 'refunded'];
+const PAYMENT_METHODS: PaymentMethod[] = ['cash', 'card', 'mobile', 'other'];
+
+/**
+ * A bare `as PaymentStatus` cast trusts whatever string is in the column. A
+ * value written by an older build, a manual edit or a future migration would
+ * then flow into the UI as an unknown status and render blank badges. Validate
+ * at the boundary and fall back to something safe instead.
+ */
+function toPaymentStatus(value: string): PaymentStatus {
+  if ((PAYMENT_STATUSES as string[]).includes(value)) return value as PaymentStatus;
+  logger.warn('Unknown payment_status in database; treating as unpaid', { value });
+  return 'unpaid';
+}
+
+function toPaymentMethod(value: string): PaymentMethod {
+  if ((PAYMENT_METHODS as string[]).includes(value)) return value as PaymentMethod;
+  logger.warn('Unknown payment_method in database; treating as other', { value });
+  return 'other';
+}
+
+function toUserRole(value: string): UserRole {
+  if (value === 'admin' || value === 'cashier') return value;
+  // Defaulting to the LOWER privilege is the only safe direction here.
+  logger.warn('Unknown user role in database; treating as cashier', { value });
+  return 'cashier';
+}
+
 export function toInvoice(row: InvoiceRow, itemRows: InvoiceItemRow[]): Invoice {
   return new Invoice({
     id: row.id,
@@ -110,8 +139,8 @@ export function toInvoice(row: InvoiceRow, itemRows: InvoiceItemRow[]): Invoice 
     tax: row.tax,
     grandTotal: row.grand_total,
     amountPaid: row.amount_paid,
-    paymentStatus: row.payment_status as PaymentStatus,
-    paymentMethod: row.payment_method as PaymentMethod,
+    paymentStatus: toPaymentStatus(row.payment_status),
+    paymentMethod: toPaymentMethod(row.payment_method),
     cashierId: row.cashier_id,
     cashierName: row.cashier_name,
     note: row.note,
@@ -124,7 +153,7 @@ export function toUser(row: UserRow): User {
     id: row.id,
     username: row.username,
     name: row.name,
-    role: row.role as UserRole,
+    role: toUserRole(row.role),
     isActive: row.is_active === 1,
     createdAt: row.created_at,
   });

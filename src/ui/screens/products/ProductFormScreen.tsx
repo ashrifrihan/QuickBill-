@@ -24,6 +24,8 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { productService } from '../../../services/ProductService';
 import { useSettingsStore } from '../../../store/settingsStore';
+import { useProductCategories } from '../../hooks/useProducts';
+import { Select } from '../../components/Select';
 import { useTheme } from '../../hooks/useResponsive';
 import { useScanner } from '../../hooks/useScanner';
 import {
@@ -91,6 +93,9 @@ export function ProductFormScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const categories = useProductCategories();
+  /** True once the user chooses "Type a new category" from the dropdown. */
+  const [newCategoryMode, setNewCategoryMode] = useState(false);
   const [showScannerModal, setShowScannerModal] = useState(false);
 
   const {
@@ -313,7 +318,46 @@ export function ProductFormScreen() {
         <Spacer size={theme.spacing.md} />
         {field('name', 'Product name', { placeholder: 'Tea 100g' })}
         <Spacer size={theme.spacing.md} />
-        {field('category', 'Category (optional)', { placeholder: 'Beverages' })}
+        {/*
+          Pick from categories already in use, so the same category isn't
+          re-typed three slightly different ways ("Drinks"/"drinks"/"Drink")
+          and then filters as three separate groups.
+        */}
+        <Controller
+          control={control}
+          name="category"
+          render={({ field: { onChange, value } }) => (
+            <>
+              <Select<string | null>
+                label="Category (optional)"
+                value={value ? value : null}
+                onChange={(next) => onChange(next ?? '')}
+                title="Choose a category"
+                placeholder="Uncategorised"
+                error={errors.category?.message}
+                options={[
+                  { value: null, label: 'Uncategorised' },
+                  ...categories.map((name) => ({ value: name, label: name })),
+                ]}
+                onCreate={() => setNewCategoryMode(true)}
+                createLabel="Type a new category"
+              />
+              {newCategoryMode ? (
+                <>
+                  <Spacer size={theme.spacing.sm} />
+                  <Field
+                    label="New category name"
+                    value={value ?? ''}
+                    onChangeText={onChange}
+                    placeholder="e.g. Beverages"
+                    autoFocus
+                    hint="Saved with the product and offered next time."
+                  />
+                </>
+              ) : null}
+            </>
+          )}
+        />
       </Card>
 
       <Spacer size={theme.spacing.lg} />

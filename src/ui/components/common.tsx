@@ -155,7 +155,7 @@ export function BentoCard({
     green: theme.colors.pastelGreenText,
     blue: theme.colors.pastelBlueText,
     pink: theme.colors.pastelPinkText,
-    dark: '#FFFFFF',
+    dark: theme.colors.text,
   };
 
   const cardContent = (
@@ -183,7 +183,7 @@ export function BentoCard({
               width: 44,
               height: 44,
               borderRadius: 14,
-              backgroundColor: 'rgba(255, 255, 255, 0.4)',
+              backgroundColor: theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.4)',
               alignItems: 'center',
               justifyContent: 'center',
             }}
@@ -382,7 +382,7 @@ export function Button({
   const inactive = disabled || loading;
 
   const background: Record<string, string> = {
-    primary: theme.colors.darkCapsule,
+    primary: theme.colors.primary,
     secondary: theme.colors.surfaceAlt,
     ghost: 'transparent',
     danger: theme.colors.danger,
@@ -393,7 +393,7 @@ export function Button({
   };
 
   const foreground: Record<string, string> = {
-    primary: '#FFFFFF',
+    primary: theme.colors.primaryText,
     secondary: theme.colors.text,
     ghost: theme.colors.text,
     danger: '#FFFFFF',
@@ -534,18 +534,21 @@ export function Badge({
 }) {
   const theme = useTheme();
 
+  const isDark = theme.mode === 'dark';
+  const translucentBg = isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.65)';
+
   const badgeStyles: Record<string, { bg: string; text: string }> = {
     neutral: { bg: theme.colors.surfaceAlt, text: theme.colors.textMuted },
     success: { bg: theme.colors.pastelGreen, text: theme.colors.pastelGreenText },
     warning: { bg: theme.colors.pastelYellow, text: theme.colors.pastelYellowText },
     danger: { bg: `${theme.colors.danger}20`, text: theme.colors.danger },
     primary: { bg: theme.colors.pastelPurple, text: theme.colors.pastelPurpleText },
-    purple: { bg: 'rgba(255, 255, 255, 0.65)', text: theme.colors.pastelPurpleText },
-    yellow: { bg: 'rgba(255, 255, 255, 0.65)', text: theme.colors.pastelYellowText },
-    green: { bg: 'rgba(255, 255, 255, 0.65)', text: theme.colors.pastelGreenText },
-    blue: { bg: 'rgba(255, 255, 255, 0.65)', text: theme.colors.pastelBlueText },
-    pink: { bg: 'rgba(255, 255, 255, 0.65)', text: theme.colors.pastelPinkText },
-    dark: { bg: 'rgba(255, 255, 255, 0.2)', text: '#FFFFFF' },
+    purple: { bg: translucentBg, text: theme.colors.pastelPurpleText },
+    yellow: { bg: translucentBg, text: theme.colors.pastelYellowText },
+    green: { bg: translucentBg, text: theme.colors.pastelGreenText },
+    blue: { bg: translucentBg, text: theme.colors.pastelBlueText },
+    pink: { bg: translucentBg, text: theme.colors.pastelPinkText },
+    dark: { bg: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.2)', text: theme.colors.text },
   };
 
   const current = badgeStyles[tone] ?? badgeStyles.neutral;

@@ -202,6 +202,10 @@ function FloatingCapsuleTabBar({ state, descriptors, navigation }: BottomTabBarP
           const isScan = route.name === 'ScanTab';
           const isBills = route.name === 'BillsTab';
 
+          const isDark = theme.mode === 'dark';
+          const activeSquareBg = isDark ? 'rgba(255, 255, 255, 0.2)' : '#FFFFFF';
+          const activeIconColor = isDark ? '#FFFFFF' : '#16171D';
+
           return (
             <Pressable
               key={route.key}
@@ -213,15 +217,15 @@ function FloatingCapsuleTabBar({ state, descriptors, navigation }: BottomTabBarP
               <View
                 style={[
                   styles.iconSquare,
-                  isFocused ? styles.activeIconSquare : styles.inactiveIconSquare,
+                  isFocused ? { backgroundColor: activeSquareBg } : styles.inactiveIconSquare,
                   isScan && !isFocused && styles.scanButtonInactive,
-                  isScan && isFocused && styles.scanButtonActive,
+                  isScan && isFocused && { backgroundColor: activeSquareBg },
                 ]}
               >
                 <Ionicons
                   name={iconName}
                   size={isScan ? 22 : 20}
-                  color={isFocused ? '#16171D' : '#9CA3AF'}
+                  color={isFocused ? activeIconColor : '#9CA3AF'}
                 />
 
                 {/* Unfinished sale badge indicator on Bills icon */}
@@ -267,11 +271,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    // Exactly half the height, so it is a true capsule at every screen size.
+    // A fixed 20 on a 64pt bar rendered as a rounded *square*, which is what
+    // made the bar look inconsistent.
+    borderRadius: 32,
+    paddingHorizontal: 8,
+    paddingVertical: 9,
     width: '100%',
     maxWidth: 440,
+    // 46pt icon + 9pt padding top and bottom fits exactly, so nothing overflows
+    // and the cart badge is never clipped.
     height: 64,
   },
   tabItem: {
@@ -280,9 +289,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconSquare: {
-    width: 48,
-    height: 42,
-    borderRadius: 14,
+    // Square dimensions + half-radius = a real circle. Previously 48×42 with
+    // radius 14, which is a rounded rectangle and read as a square.
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -303,8 +314,8 @@ const styles = StyleSheet.create({
     top: 2,
     right: 2,
     backgroundColor: '#EF4444',
-    borderRadius: 6,
-    minWidth: 16,
+    borderRadius: 9,
+    minWidth: 18,
     height: 16,
     alignItems: 'center',
     justifyContent: 'center',

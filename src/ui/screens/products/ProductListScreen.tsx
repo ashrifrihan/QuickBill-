@@ -28,6 +28,7 @@ import {
   Txt,
 } from '../../components/common';
 import { BarcodeScannerSheet } from '../../components/BarcodeScannerSheet';
+import { Select } from '../../components/Select';
 import { formatMoney } from '../../../domain/Money';
 import { Product } from '../../../domain/Product';
 import { productService } from '../../../services/ProductService';
@@ -145,24 +146,23 @@ export function ProductListScreen() {
         </>
       ) : null}
 
-      {/* Category chips */}
+      {/*
+        A dropdown rather than a chip row: once a shop has more than a few
+        categories the chips scroll off-screen and the active one can end up
+        hidden. A select always shows what is currently filtered.
+      */}
       {categories.length > 0 ? (
         <>
           <Spacer size={theme.spacing.md} />
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={[null, ...categories]}
-            keyExtractor={(item) => item ?? '__all__'}
-            contentContainerStyle={{ gap: theme.spacing.sm }}
-            renderItem={({ item }) => (
-              <Button
-                title={item ?? 'All'}
-                size="small"
-                variant={category === item ? 'primary' : 'secondary'}
-                onPress={() => setCategory(item)}
-              />
-            )}
+          <Select<string | null>
+            value={category}
+            onChange={setCategory}
+            title="Filter by category"
+            placeholder="All categories"
+            options={[
+              { value: null, label: 'All categories', hint: String(products.length) },
+              ...categories.map((name) => ({ value: name, label: name })),
+            ]}
           />
         </>
       ) : null}
@@ -292,7 +292,7 @@ function ProductTile({
       }`}
       style={({ pressed }) => [styles.tile, { opacity: pressed ? 0.85 : 1 }]}
     >
-      <View style={[styles.tileInner, { borderRadius: theme.radius.lg }]}>
+      <View style={[styles.tileInner, { borderRadius: theme.radius.lg, backgroundColor: theme.colors.surfaceAlt }]}>
         {product.imageUri ? (
           <Image source={{ uri: product.imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         ) : (
@@ -361,7 +361,6 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 0.86,
     overflow: 'hidden',
-    backgroundColor: '#EEE',
   },
   placeholderCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   topLeft: { position: 'absolute', top: 8, left: 8 },

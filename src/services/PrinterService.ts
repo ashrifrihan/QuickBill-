@@ -10,7 +10,6 @@
 
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
 import { Invoice } from '../domain/Invoice';
 import { PrinterError } from '../errors/AppError';
 import { logger } from '../errors/logger';
@@ -66,22 +65,6 @@ function pdfFailureMessage(error: unknown): string {
     : 'Could not create the PDF. The sale is still saved.';
 }
 
-/** Best-effort rename so the shared attachment reads `Bill-INV-...pdf`. */
-async function renameForSharing(uri: string, invoiceNo: string): Promise<string> {
-  try {
-    const safeName = `Bill-${invoiceNo.replace(/[^A-Za-z0-9._-]/g, '-')}.pdf`;
-    const source = new FileSystem.File(uri);
-    const destination = new FileSystem.File(FileSystem.Paths.cache, safeName);
-    if (destination.exists) destination.delete();
-    source.copy(destination);
-    return destination.uri;
-  } catch (error) {
-    // A cosmetic filename is never worth failing a print over.
-    logger.debug('Could not rename PDF for sharing; using original', { reason: String(error) });
-    return uri;
-  }
-}
-
 export class PdfPrintStrategy implements IPrintStrategy {
   readonly id = 'pdf' as const;
   readonly label = 'PDF / Share';
@@ -108,10 +91,10 @@ export class PdfPrintStrategy implements IPrintStrategy {
       });
     }
 
-    // Give the file a human-readable name; `printToFileAsync` produces a random
-    // cache name, which looks wrong in WhatsApp/email attachments.
-    uri = await renameForSharing(uri, invoice.invoiceNo);
-
+    // The generated file is shared as-is. An earlier version copied it to a
+    // prettier filename, but expo-file-system's scoped API rejects reads
+    // outside the app's own sandbox — and a cosmetic name is not worth an
+    // entire extra failure mode on the one action that produces the bill.
     try {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {

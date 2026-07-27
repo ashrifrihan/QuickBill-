@@ -10,6 +10,7 @@
 
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 import { Invoice } from '../domain/Invoice';
 import { PrinterError } from '../errors/AppError';
 import { logger } from '../errors/logger';
@@ -37,6 +38,50 @@ export interface IPrintStrategy {
  * Renders the receipt to a PDF and opens the share sheet (WhatsApp, email,
  * save to files). Needs no hardware, so it is the default and the fallback.
  */
+/**
+ * Turns a raw expo-print failure into something the shopkeeper can act on.
+ *
+ * The most common cause in development is a development build that was
+ * compiled BEFORE expo-print was added — the JS calls a native module that
+ * isn't in the binary. Telling the user to rebuild is far more useful than
+ * "something went wrong".
+ */
+function pdfFailureMessage(error: unknown): string {
+  const text = String((error as { message?: string })?.message ?? error);
+
+  if (/cannot find native module|native module.*not.*found|ExpoPrint/i.test(text)) {
+    return 'PDF printing is missing from this build. Rebuild the development build so it includes expo-print.';
+  }
+  if (/permission/i.test(text)) {
+    return 'QuickBill needs storage access to save the PDF.';
+  }
+  if (/space|ENOSPC/i.test(text)) {
+    return 'Not enough storage space to create the PDF.';
+  }
+  // Surface the real reason in development so bugs aren't hidden behind a
+  // friendly string; keep it calm in production.
+  const isDev = typeof __DEV__ !== 'undefined' && __DEV__;
+  return isDev
+    ? `Could not create the PDF: ${text}`
+    : 'Could not create the PDF. The sale is still saved.';
+}
+
+/** Best-effort rename so the shared attachment reads `Bill-INV-...pdf`. */
+async function renameForSharing(uri: string, invoiceNo: string): Promise<string> {
+  try {
+    const safeName = `Bill-${invoiceNo.replace(/[^A-Za-z0-9._-]/g, '-')}.pdf`;
+    const source = new FileSystem.File(uri);
+    const destination = new FileSystem.File(FileSystem.Paths.cache, safeName);
+    if (destination.exists) destination.delete();
+    source.copy(destination);
+    return destination.uri;
+  } catch (error) {
+    // A cosmetic filename is never worth failing a print over.
+    logger.debug('Could not rename PDF for sharing; using original', { reason: String(error) });
+    return uri;
+  }
+}
+
 export class PdfPrintStrategy implements IPrintStrategy {
   readonly id = 'pdf' as const;
   readonly label = 'PDF / Share';
@@ -46,10 +91,28 @@ export class PdfPrintStrategy implements IPrintStrategy {
   }
 
   async print(invoice: Invoice, shop: ReceiptShopInfo): Promise<PrintResult> {
+    // Generating the PDF and sharing it are SEPARATE failures with separate
+    // meanings. Lumping them together made a dismissed share sheet report
+    // "Could not create the PDF" even though the file was written fine.
+    let uri: string;
+
     try {
       const html = buildReceiptHtml(invoice, shop);
-      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      const result = await Print.printToFileAsync({ html, base64: false });
+      uri = result.uri;
+    } catch (error) {
+      throw new PrinterError('Failed to render the receipt to PDF', {
+        userMessage: pdfFailureMessage(error),
+        recoverable: false,
+        cause: error,
+      });
+    }
 
+    // Give the file a human-readable name; `printToFileAsync` produces a random
+    // cache name, which looks wrong in WhatsApp/email attachments.
+    uri = await renameForSharing(uri, invoice.invoiceNo);
+
+    try {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'application/pdf',
@@ -57,17 +120,15 @@ export class PdfPrintStrategy implements IPrintStrategy {
           UTI: 'com.adobe.pdf',
         });
       } else {
-        logger.warn('Sharing unavailable; PDF saved only', { uri });
+        logger.warn('Sharing unavailable; PDF saved to disk only', { uri });
       }
-
-      return { strategy: 'pdf', uri, usedFallback: false };
     } catch (error) {
-      throw new PrinterError('Failed to generate or share the PDF receipt', {
-        userMessage: 'Could not create the PDF. The sale is still saved.',
-        recoverable: false,
-        cause: error,
-      });
+      // The PDF exists. Dismissing the share sheet is a normal user action on
+      // Android and must not be reported as a failure.
+      logger.info('Share sheet closed without sharing', { uri, reason: String(error) });
     }
+
+    return { strategy: 'pdf', uri, usedFallback: false };
   }
 
   /** Opens the OS print dialog for a paper (non-thermal) printer. */

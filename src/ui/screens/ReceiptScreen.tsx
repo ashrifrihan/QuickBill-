@@ -15,6 +15,9 @@ import { invoiceRepository } from '../../data';
 import { useAsync } from '../hooks/useAsync';
 import { useCheckout } from '../hooks/useCheckout';
 import { useSettingsStore } from '../../store/settingsStore';
+import { settingsService } from '../../services/SettingsService';
+import { PdfPrintStrategy } from '../../services/PrinterService';
+import { toAppError } from '../../errors/AppError';
 import { useTheme } from '../hooks/useResponsive';
 import {
   Badge,
@@ -41,7 +44,8 @@ export function ReceiptScreen() {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<ReceiptRoute>();
-  const currency = useSettingsStore((s) => s.settings.currency);
+  const settings = useSettingsStore((s) => s.settings);
+  const currency = settings.currency;
   const { print, printing, error, clearError } = useCheckout();
 
   const [printNote, setPrintNote] = useState<string | null>(null);
@@ -66,6 +70,21 @@ export function ReceiptScreen() {
     const result = await print(invoice);
     if (result?.usedFallback) {
       setPrintNote('The thermal printer was unavailable, so the bill was shared as a PDF.');
+    }
+  };
+
+  /**
+   * Second output path. If sharing a PDF fails on this device, the OS print
+   * dialog can still render it (and Android's "Save as PDF" target writes the
+   * file), so the shopkeeper is never left with no way to produce a bill.
+   */
+  const handleSystemPrint = async () => {
+    setPrintNote(null);
+    try {
+      const shop = settingsService.toShopInfo(settings);
+      await new PdfPrintStrategy().printToSystemPrinter(invoice, shop);
+    } catch (error) {
+      setPrintNote(toAppError(error).userMessage);
     }
   };
 
@@ -191,10 +210,27 @@ export function ReceiptScreen() {
       />
       <Spacer size={theme.spacing.sm} />
 
+      <Button
+        title="Print via system dialog"
+        variant="secondary"
+        icon="print-outline"
+        onPress={handleSystemPrint}
+      />
+      <Spacer size={theme.spacing.sm} />
+
+      {/*
+        There is ALWAYS a way out of this screen. Previously a bill opened
+        without `justCreated` offered only "Back", which read as a dead end
+        after a sale.
+      */}
       {params.justCreated ? (
-        <Button title="Next sale" variant="secondary" onPress={goHome} />
+        <Button title="Done — next sale" icon="checkmark-circle-outline" onPress={goHome} />
       ) : (
-        <Button title="Back" variant="ghost" onPress={() => navigation.goBack()} />
+        <>
+          <Button title="Back" variant="ghost" onPress={() => navigation.goBack()} />
+          <Spacer size={theme.spacing.sm} />
+          <Button title="New sale" variant="ghost" onPress={goHome} />
+        </>
       )}
       <Spacer size={theme.spacing.xl} />
     </Screen>

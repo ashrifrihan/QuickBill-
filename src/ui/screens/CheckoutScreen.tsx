@@ -25,6 +25,7 @@ import {
 } from '../components/common';
 import { formatMoney, parseMoney } from '../../domain/Money';
 import { PaymentMethod } from '../../domain/Invoice';
+import { logger } from '../../errors/logger';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -68,10 +69,24 @@ export function CheckoutScreen() {
       amountPaid,
     });
 
-    if (invoice?.id !== undefined) {
-      // `replace` so Back doesn't return to a checkout for an already-sold cart.
-      navigation.replace('Receipt', { invoiceId: invoice.id, justCreated: true });
+    // `checkout` returns null only when it already set `error`, which the
+    // banner above renders — so there is always visible feedback.
+    if (!invoice) return;
+
+    if (invoice.id === undefined) {
+      // The sale IS committed at this point. Previously this branch did
+      // nothing at all, so the cashier tapped Confirm and the screen just sat
+      // there with no way to finish. Send them to the bill list instead of
+      // leaving them stranded.
+      logger.error('Checkout saved an invoice with no id', undefined, {
+        invoiceNo: invoice.invoiceNo,
+      });
+      navigation.replace('Main', { screen: 'BillsTab', params: { screen: 'BillHistory' } });
+      return;
     }
+
+    // `replace` so Back doesn't return to a checkout for an already-sold cart.
+    navigation.replace('Receipt', { invoiceId: invoice.id, justCreated: true });
   };
 
   const line = (label: string, value: string, strong = false) => (

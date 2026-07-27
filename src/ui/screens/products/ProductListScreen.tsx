@@ -1,17 +1,23 @@
-/** Product catalogue with search and a low-stock badge (guide §12). */
+/**
+ * Product catalogue (guide §12), laid out as a two-column visual grid.
+ *
+ * Cards are image-led: a cashier recognises a product by sight far faster than
+ * by reading a row of text. Products without a photo fall back to a coloured
+ * tile with the initial, so the grid never looks broken or empty.
+ */
 
-import React from 'react';
-import { FlatList, Pressable, View } from 'react-native';
+import React, { useState } from 'react';
+import { FlatList, Image, Pressable, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useProducts } from '../../hooks/useProducts';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useProducts, useProductCategories } from '../../hooks/useProducts';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { useIsAdmin } from '../../../store/authStore';
 import { useResponsive, useTheme } from '../../hooks/useResponsive';
 import {
   Badge,
   Button,
-  Card,
   EmptyState,
   ErrorState,
   Field,
@@ -21,12 +27,20 @@ import {
   Spacer,
   Txt,
 } from '../../components/common';
+import { BarcodeScannerSheet } from '../../components/BarcodeScannerSheet';
 import { formatMoney } from '../../../domain/Money';
 import { Product } from '../../../domain/Product';
+import { productService } from '../../../services/ProductService';
+import { toAppError } from '../../../errors/AppError';
+import { logger } from '../../../errors/logger';
+import { TAB_BAR_CLEARANCE } from '../../../config/constants';
 import type { ProductsStackParamList } from '../../../navigation/types';
 
 type Nav = NativeStackNavigationProp<ProductsStackParamList>;
 type ListRoute = RouteProp<ProductsStackParamList, 'ProductList'>;
+
+/** Rotating tints so a grid of photo-less products still reads as a grid. */
+const TILE_TINTS = ['purple', 'green', 'blue', 'yellow', 'pink'] as const;
 
 export function ProductListScreen() {
   const theme = useTheme();
@@ -35,11 +49,17 @@ export function ProductListScreen() {
   const { params } = useRoute<ListRoute>();
   const isAdmin = useIsAdmin();
   const currency = useSettingsStore((s) => s.settings.currency);
+  const categories = useProductCategories();
+
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const {
     products,
     search,
     setSearch,
+    category,
+    setCategory,
     initialLoading,
     error,
     reload,
@@ -47,30 +67,114 @@ export function ProductListScreen() {
     lowStockThreshold,
   } = useProducts({ onlyLowStock: params?.lowStockOnly });
 
+  /** Scan to jump straight to a product — no typing, no scrolling. */
+  const handleScanned = async (barcode: string) => {
+    setScannerOpen(false);
+    setScanError(null);
+    try {
+      const product = await productService.findByBarcode(barcode);
+      if (product?.id !== undefined) {
+        navigation.navigate('ProductDetail', { productId: product.id });
+      } else {
+        // Unknown code: go straight to Add Product with it pre-filled.
+        navigation.navigate('ProductForm', { barcode });
+      }
+    } catch (err) {
+      logger.error('Scan-to-find lookup failed', err, { barcode });
+      setScanError(toAppError(err).userMessage);
+    }
+  };
+
+  const gridColumns = Math.max(2, columns);
+
   const header = (
-    <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.md, paddingBottom: theme.spacing.sm }}>
-      <Field
-        value={search}
-        onChangeText={setSearch}
-        placeholder="Search product name or barcode…"
-        icon="search-outline"
-        autoCapitalize="none"
-        autoCorrect={false}
-        returnKeyType="search"
-      />
-      {params?.lowStockOnly ? (
+    <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.sm }}>
+      <Txt variant="title" style={{ fontSize: 28, fontWeight: '700' }}>
+        Products
+      </Txt>
+      <Spacer size={2} />
+      <Txt variant="caption" color="muted">
+        {products.length} item{products.length === 1 ? '' : 's'} in your catalogue
+      </Txt>
+
+      <Spacer size={theme.spacing.lg} />
+
+      {/* Search + scan. Scanning is the fast path, so it sits right beside it. */}
+      <Row gap={theme.spacing.sm}>
+        <View style={{ flex: 1 }}>
+          <Field
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search name or barcode…"
+            icon="search-outline"
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+        </View>
+        <Pressable
+          onPress={() => setScannerOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Scan a barcode to find a product"
+          style={({ pressed }) => [
+            styles.scanSquare,
+            {
+              backgroundColor: theme.colors.darkCapsule,
+              borderRadius: theme.radius.lg,
+              opacity: pressed ? 0.8 : 1,
+            },
+          ]}
+        >
+          <Ionicons name="scan-outline" size={22} color="#FFFFFF" />
+        </Pressable>
+      </Row>
+
+      {scanError ? (
         <>
           <Spacer size={theme.spacing.sm} />
-          <Badge label={`Low Stock Alert (≤ ${lowStockThreshold} units)`} tone="warning" />
+          <Txt variant="caption" color="danger">
+            {scanError}
+          </Txt>
         </>
       ) : null}
+
+      {params?.lowStockOnly ? (
+        <>
+          <Spacer size={theme.spacing.md} />
+          <Badge label={`Low stock — ${lowStockThreshold} units or fewer`} tone="warning" />
+        </>
+      ) : null}
+
+      {/* Category chips */}
+      {categories.length > 0 ? (
+        <>
+          <Spacer size={theme.spacing.md} />
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={[null, ...categories]}
+            keyExtractor={(item) => item ?? '__all__'}
+            contentContainerStyle={{ gap: theme.spacing.sm }}
+            renderItem={({ item }) => (
+              <Button
+                title={item ?? 'All'}
+                size="small"
+                variant={category === item ? 'primary' : 'secondary'}
+                onPress={() => setCategory(item)}
+              />
+            )}
+          />
+        </>
+      ) : null}
+
+      <Spacer size={theme.spacing.lg} />
     </View>
   );
 
   if (initialLoading) {
     return (
       <Screen>
-        <LoadingState label="Loading product catalogue…" />
+        <LoadingState label="Loading products…" />
       </Screen>
     );
   }
@@ -85,112 +189,207 @@ export function ProductListScreen() {
 
   return (
     <Screen>
-      {header}
+      <FlatList
+        data={products}
+        ListHeaderComponent={header}
+        // Remount when the column count changes on rotation.
+        key={`cols-${gridColumns}`}
+        numColumns={gridColumns}
+        columnWrapperStyle={{ gap: theme.spacing.md, paddingHorizontal: theme.spacing.lg }}
+        keyExtractor={(product) => String(product.id)}
+        contentContainerStyle={{
+          paddingBottom: TAB_BAR_CLEARANCE + 60,
+          gap: theme.spacing.md,
+        }}
+        onRefresh={reload}
+        refreshing={false}
+        ListEmptyComponent={
+          <EmptyState
+            icon="cube-outline"
+            title={search || category ? 'No matches' : 'No products yet'}
+            message={
+              search || category
+                ? 'Try a different search or category.'
+                : 'Scan a barcode and QuickBill will offer to add the product.'
+            }
+            actionLabel={isAdmin && !search ? 'Scan to add' : undefined}
+            onAction={isAdmin && !search ? () => setScannerOpen(true) : undefined}
+          />
+        }
+        renderItem={({ item, index }) => (
+          <ProductTile
+            product={item}
+            currency={currency}
+            lowStockThreshold={lowStockThreshold}
+            tint={TILE_TINTS[index % TILE_TINTS.length]}
+            onPress={() => navigation.navigate('ProductDetail', { productId: item.id! })}
+          />
+        )}
+      />
 
-      {isEmpty ? (
-        <EmptyState
-          icon="cube-outline"
-          title={search ? 'No matches found' : 'No products yet'}
-          message={
-            search
-              ? 'Try searching with a different product name or barcode.'
-              : 'Add your first product to start taking orders!'
-          }
-          actionLabel={isAdmin && !search ? 'Add Product' : undefined}
-          onAction={isAdmin && !search ? () => navigation.navigate('ProductForm') : undefined}
-        />
-      ) : (
-        <FlatList
-          data={products}
-          key={`cols-${columns}`}
-          numColumns={columns}
-          columnWrapperStyle={columns > 1 ? { gap: theme.spacing.md } : undefined}
-          keyExtractor={(product) => String(product.id)}
-          contentContainerStyle={{
-            paddingHorizontal: theme.spacing.lg,
-            paddingBottom: 110,
-            gap: theme.spacing.md,
-          }}
-          onRefresh={reload}
-          refreshing={false}
-          renderItem={({ item }) => (
-            <ProductRow
-              product={item}
-              currency={currency}
-              lowStockThreshold={lowStockThreshold}
-              flex={columns > 1}
-              onPress={() => navigation.navigate('ProductDetail', { productId: item.id! })}
-            />
-          )}
-        />
-      )}
-
+      {/* Floating add button, lifted clear of the capsule tab bar. */}
       {isAdmin ? (
-        <View style={{ position: 'absolute', right: 20, bottom: 90 }}>
+        <View style={[styles.fab, { bottom: TAB_BAR_CLEARANCE }]} pointerEvents="box-none">
           <Button
-            title="+ Add Product"
-            variant="purple"
-            size="medium"
+            title="Add product"
+            icon="add"
             onPress={() => navigation.navigate('ProductForm')}
+            style={{ paddingHorizontal: theme.spacing.xl }}
           />
         </View>
       ) : null}
+
+      <BarcodeScannerSheet
+        visible={scannerOpen}
+        onScanned={(barcode) => void handleScanned(barcode)}
+        onClose={() => setScannerOpen(false)}
+        title="Find product"
+        hint="Scan a product to open it"
+      />
     </Screen>
   );
 }
 
-function ProductRow({
+function ProductTile({
   product,
   currency,
   lowStockThreshold,
+  tint,
   onPress,
-  flex,
 }: {
   product: Product;
   currency: string;
   lowStockThreshold: number;
+  tint: (typeof TILE_TINTS)[number];
   onPress: () => void;
-  flex: boolean;
 }) {
   const theme = useTheme();
+  const out = product.isOutOfStock();
   const low = product.isLowStock(lowStockThreshold);
+
+  const tintBg = {
+    purple: theme.colors.pastelPurple,
+    green: theme.colors.pastelGreen,
+    blue: theme.colors.pastelBlue,
+    yellow: theme.colors.pastelYellow,
+    pink: theme.colors.pastelPink,
+  }[tint];
+
+  const tintFg = {
+    purple: theme.colors.pastelPurpleText,
+    green: theme.colors.pastelGreenText,
+    blue: theme.colors.pastelBlueText,
+    yellow: theme.colors.pastelYellowText,
+    pink: theme.colors.pastelPinkText,
+  }[tint];
 
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${product.name}, ${formatMoney(product.sellingPrice, currency)}`}
-      style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }, flex ? { flex: 1 } : null]}
+      accessibilityLabel={`${product.name}, ${formatMoney(product.sellingPrice, currency)}, ${
+        out ? 'out of stock' : `${product.stockQty} in stock`
+      }`}
+      style={({ pressed }) => [styles.tile, { opacity: pressed ? 0.85 : 1 }]}
     >
-      <Card variant="surface" radiusSize="xl">
-        <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <View style={{ flex: 1, paddingRight: theme.spacing.md }}>
-            <Txt variant="label" style={{ fontSize: 16, fontWeight: '700' }} numberOfLines={2}>
+      <View style={[styles.tileInner, { borderRadius: theme.radius.lg }]}>
+        {product.imageUri ? (
+          <Image source={{ uri: product.imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: tintBg }]}>
+            <View style={styles.placeholderCenter}>
+              <Txt style={{ fontSize: 34, fontWeight: '700', color: tintFg }}>
+                {product.name.charAt(0).toUpperCase()}
+              </Txt>
+            </View>
+          </View>
+        )}
+
+        {/* Stock pill, top-left */}
+        <View style={styles.topLeft}>
+          <View
+            style={[
+              styles.pill,
+              { backgroundColor: out ? theme.colors.danger : low ? theme.colors.warning : theme.colors.success },
+            ]}
+          >
+            <Ionicons
+              name={out ? 'close-circle' : low ? 'alert-circle' : 'checkmark-circle'}
+              size={12}
+              color="#FFFFFF"
+            />
+            <Txt style={styles.pillText}>{out ? 'Out' : `${product.stockQty}`}</Txt>
+          </View>
+        </View>
+
+        {/* Price pill, top-right */}
+        <View style={styles.topRight}>
+          <View style={[styles.pill, { backgroundColor: 'rgba(22,23,29,0.82)' }]}>
+            <Txt style={styles.pillText}>{formatMoney(product.sellingPrice, currency)}</Txt>
+          </View>
+        </View>
+
+        {/* Legibility scrim + title, bottom */}
+        <View style={styles.tileFooter}>
+          <View style={styles.scrim} />
+          <View style={{ padding: 10 }}>
+            <Txt style={styles.tileTitle} numberOfLines={1}>
               {product.name}
             </Txt>
-            <Spacer size={4} />
-            <Txt variant="caption" color="muted">
-              {product.barcode}
-              {product.category ? ` · ${product.category}` : ''}
-            </Txt>
+            <Row gap={3} style={{ marginTop: 2 }}>
+              <Ionicons name="pricetag-outline" size={11} color="rgba(255,255,255,0.85)" />
+              <Txt style={styles.tileSub} numberOfLines={1}>
+                {product.category ?? 'Uncategorised'}
+              </Txt>
+            </Row>
           </View>
-          <Txt variant="heading" style={{ color: theme.colors.text, fontSize: 17, fontWeight: '700' }}>
-            {formatMoney(product.sellingPrice, currency)}
-          </Txt>
-        </Row>
-
-        <Spacer size={theme.spacing.md} />
-
-        <Row gap={theme.spacing.sm}>
-          {product.isOutOfStock() ? (
-            <Badge label="Out of Stock" tone="danger" />
-          ) : low ? (
-            <Badge label={`Low Stock (${product.stockQty} left)`} tone="warning" />
-          ) : (
-            <Badge label={`${product.stockQty} in stock`} tone="green" />
-          )}
-        </Row>
-      </Card>
+        </View>
+      </View>
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  scanSquare: {
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tile: { flex: 1 },
+  tileInner: {
+    width: '100%',
+    aspectRatio: 0.86,
+    overflow: 'hidden',
+    backgroundColor: '#EEE',
+  },
+  placeholderCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  topLeft: { position: 'absolute', top: 8, left: 8 },
+  topRight: { position: 'absolute', top: 8, right: 8 },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  pillText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  tileFooter: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  scrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  tileTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  tileSub: { color: 'rgba(255,255,255,0.85)', fontSize: 11 },
+  fab: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+});

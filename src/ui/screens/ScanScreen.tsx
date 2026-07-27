@@ -10,6 +10,7 @@
 import React, { useCallback, useState } from 'react';
 import { Linking, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { CameraView } from 'expo-camera';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -20,13 +21,17 @@ import { useTheme } from '../hooks/useResponsive';
 import { Button, Card, Row, Screen, Spacer, Txt } from '../components/common';
 import { formatMoney } from '../../domain/Money';
 import { Product } from '../../domain/Product';
-import { SUPPORTED_BARCODE_TYPES } from '../../config/constants';
+import { productService } from '../../services/ProductService';
+import { toAppError } from '../../errors/AppError';
+import { logger } from '../../errors/logger';
+import { SUPPORTED_BARCODE_TYPES, TAB_BAR_CLEARANCE } from '../../config/constants';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function ScanScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const addProduct = useCartStore((s) => s.addProduct);
   const totals = useCartTotals();
@@ -36,6 +41,8 @@ export function ScanScreen() {
   const [qty, setQty] = useState(1);
   const [manualBarcode, setManualBarcode] = useState('');
   const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
 
   const handleFound = useCallback(
     (product: Product) => {
@@ -96,20 +103,30 @@ export function ScanScreen() {
     const barcode = manualBarcode.trim();
     if (!barcode) return;
 
-    const { productService } = await import('../../services/ProductService');
-    const product = await productService.findByBarcode(barcode);
-    if (product) {
-      setFoundProduct(product);
-      setQty(1);
-      setShowManualEntry(false);
-      setManualBarcode('');
-    } else {
-      setShowManualEntry(false);
-      setManualBarcode('');
-      navigation.navigate('Main', {
-        screen: 'ProductsTab',
-        params: { screen: 'ProductForm', params: { barcode } },
-      });
+    setManualError(null);
+    setSearching(true);
+    try {
+      const product = await productService.findByBarcode(barcode);
+      if (product) {
+        setFoundProduct(product);
+        setQty(1);
+        setShowManualEntry(false);
+        setManualBarcode('');
+      } else {
+        setShowManualEntry(false);
+        setManualBarcode('');
+        navigation.navigate('Main', {
+          screen: 'ProductsTab',
+          params: { screen: 'ProductForm', params: { barcode } },
+        });
+      }
+    } catch (error) {
+      // A lookup failure must leave the panel open with the typed code intact,
+      // not reject silently and strand the cashier.
+      logger.error('Manual barcode lookup failed', error, { barcode });
+      setManualError(toAppError(error).userMessage);
+    } finally {
+      setSearching(false);
     }
   }, [manualBarcode, navigation]);
 
@@ -186,7 +203,15 @@ export function ScanScreen() {
         barcodeScannerSettings={{ barcodeTypes: [...SUPPORTED_BARCODE_TYPES] }}
       />
 
-      <View style={styles.overlay} pointerEvents="box-none">
+      {/*
+        Three fixed zones instead of `space-between` over conditional children.
+        With space-between, hiding the scan frame after a hit made the top bar
+        and the product card jump around the screen.
+      */}
+      <View
+        style={[styles.overlay, { paddingTop: insets.top + 12 }]}
+        pointerEvents="box-none"
+      >
         {/* Top action bar */}
         <View style={styles.topBar}>
           <Pressable
@@ -240,12 +265,32 @@ export function ScanScreen() {
                 </View>
                 <Pressable
                   onPress={handleManualSearch}
-                  style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
+                  disabled={searching}
+                  style={[
+                    styles.actionButton,
+                    { backgroundColor: theme.colors.primary, opacity: searching ? 0.5 : 1 },
+                  ]}
                 >
-                  <Ionicons name="search" size={20} color={theme.colors.primaryText} />
+                  <Ionicons
+                    name={searching ? 'hourglass-outline' : 'search'}
+                    size={20}
+                    color={theme.colors.primaryText}
+                  />
                 </Pressable>
               </Row>
-              <Pressable onPress={() => { setShowManualEntry(false); setManualBarcode(''); }} style={{ marginTop: 8 }}>
+              {manualError ? (
+                <Txt variant="caption" style={{ color: theme.colors.danger, marginTop: 8 }}>
+                  {manualError}
+                </Txt>
+              ) : null}
+              <Pressable
+                onPress={() => {
+                  setShowManualEntry(false);
+                  setManualBarcode('');
+                  setManualError(null);
+                }}
+                style={{ marginTop: 8 }}
+              >
                 <Txt variant="caption" style={{ color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
                   Cancel
                 </Txt>
@@ -254,23 +299,28 @@ export function ScanScreen() {
           </View>
         ) : null}
 
-        {/* Scan frame guide */}
-        {!foundProduct ? (
-          <View style={[styles.frame, { borderColor: frameColor }]}>
-            <Txt variant="label" style={{ color: '#FFFFFF' }} align="center">
-              {scanner.phase === 'looking-up'
-                ? 'Looking up...'
-                : scanner.phase === 'found'
-                  ? 'Product found'
-                  : scanner.phase === 'not-found'
-                    ? 'Unknown barcode'
-                    : 'Point at a barcode'}
-            </Txt>
-          </View>
-        ) : null}
+        {/* Middle zone: always present, so the frame stays optically centred. */}
+        <View style={styles.middle} pointerEvents="none">
+          {!foundProduct ? (
+            <View style={[styles.frame, { borderColor: frameColor }]}>
+              <Txt variant="label" style={{ color: '#FFFFFF' }} align="center">
+                {scanner.phase === 'looking-up'
+                  ? 'Looking up...'
+                  : scanner.phase === 'found'
+                    ? 'Product found'
+                    : scanner.phase === 'not-found'
+                      ? 'Unknown barcode'
+                      : 'Point at a barcode'}
+              </Txt>
+            </View>
+          ) : null}
+        </View>
 
-        {/* Bottom area */}
-        <View style={styles.bottom} pointerEvents="box-none">
+        {/* Bottom area — cleared of the floating tab bar. */}
+        <View
+          style={[styles.bottom, { paddingBottom: TAB_BAR_CLEARANCE }]}
+          pointerEvents="box-none"
+        >
           {scanner.error ? (
             <Card style={{ marginBottom: theme.spacing.md }}>
               <Txt color="danger" variant="label">
@@ -397,7 +447,8 @@ export function ScanScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  overlay: { flex: 1, justifyContent: 'space-between', padding: 20, paddingTop: 60 },
+  overlay: { flex: 1, paddingHorizontal: 20 },
+  middle: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -414,15 +465,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   frame: {
-    alignSelf: 'center',
-    width: '85%',
+    width: '100%',
     aspectRatio: 1.6,
     borderWidth: 3,
     borderRadius: 20,
     justifyContent: 'flex-end',
     padding: 12,
   },
-  bottom: { paddingBottom: 24 },
+  bottom: {},
   cartBar: {
     flexDirection: 'row',
     alignItems: 'center',

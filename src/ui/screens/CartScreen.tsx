@@ -29,6 +29,7 @@ import {
 import { formatMoney, parseMoney } from '../../domain/Money';
 import { CartItem } from '../../domain/CartItem';
 import { CartTotals, Discount, LineTotals } from '../../domain/Cart';
+import { TAB_BAR_CLEARANCE } from '../../config/constants';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -251,7 +252,9 @@ function SummaryPane({
   );
 
   return (
-    <View style={{ padding: theme.spacing.lg, paddingBottom: 95 }}>
+    // Clears the floating tab bar; without this the Charge button sits under
+    // it and the sale cannot be completed.
+    <View style={{ padding: theme.spacing.lg, paddingBottom: TAB_BAR_CLEARANCE }}>
       {line('Subtotal', formatMoney(totals.subtotal, currency))}
       {totals.discount > 0
         ? line('Discount', `−${formatMoney(totals.discount, currency)}`, false, 'success')

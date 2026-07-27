@@ -46,8 +46,17 @@ export default function App() {
       // Opens the connection and runs migrations. Everything else depends on it.
       await getDatabase();
 
-      // These three are independent, so run them together.
-      await Promise.all([loadSettings(), bootstrapAuth(), restoreDraft()]);
+      // Independent, and none of them is fatal: settings fall back to defaults,
+      // auth falls back to the login screen, a bad draft is discarded.
+      // `allSettled`, not `all` — one of them failing must not stop the till
+      // from opening, which is what `all` did.
+      const results = await Promise.allSettled([loadSettings(), bootstrapAuth(), restoreDraft()]);
+      const labels = ['settings', 'auth', 'cart draft'];
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          logger.error(`Startup step "${labels[index]}" failed; continuing`, result.reason);
+        }
+      });
 
       logger.info('QuickBill started');
       setBoot('ready');

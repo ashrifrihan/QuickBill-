@@ -19,15 +19,47 @@ const DRAFT_SAVE_DEBOUNCE_MS = 400;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
+ * Monotonic token guarding against stale writes.
+ *
+ * Autosave is debounced, so a timer queued before a clear/checkout could
+ * otherwise fire afterwards and resurrect a cart that was already sold. Every
+ * mutation bumps this; a save only lands if its token is still the newest one
+ * both when the timer fires and when the async write resolves.
+ */
+let draftVersion = 0;
+
+function cancelPendingDraftSave(): void {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  // Invalidate any in-flight write that has already passed the timer check.
+  draftVersion += 1;
+}
+
+/**
  * Draft saving is best-effort and must never surface to the user or block a
  * sale — a failed autosave is strictly better than an interrupted checkout.
  */
 function scheduleDraftSave(cart: Cart): void {
   if (saveTimer) clearTimeout(saveTimer);
+  const version = ++draftVersion;
+
   saveTimer = setTimeout(() => {
-    cartDraftRepository.save(cart).catch((error) => {
-      logger.warn('Cart draft autosave failed', { error: String(error) });
-    });
+    saveTimer = null;
+    if (version !== draftVersion) return; // superseded before we started
+
+    cartDraftRepository
+      .save(cart)
+      .then(() => {
+        if (version !== draftVersion) {
+          // A newer mutation landed mid-write; that one will save itself.
+          logger.debug('Discarded a superseded cart draft write');
+        }
+      })
+      .catch((error) => {
+        logger.warn('Cart draft autosave failed', { error: String(error) });
+      });
   }, DRAFT_SAVE_DEBOUNCE_MS);
 }
 
@@ -72,7 +104,9 @@ export const useCartStore = create<CartState>((set, get) => {
     setCustomer: (name) => mutate((c) => c.withCustomer(name)),
 
     clear: () => {
-      if (saveTimer) clearTimeout(saveTimer);
+      // Cancel first: a queued autosave must not rewrite the cart we are
+      // about to delete.
+      cancelPendingDraftSave();
       set({ cart: Cart.empty() });
       cartDraftRepository.clear().catch((error) => {
         logger.warn('Could not clear cart draft', { error: String(error) });

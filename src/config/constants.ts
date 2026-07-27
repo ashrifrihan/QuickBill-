@@ -12,6 +12,16 @@ export const TABLET_BREAKPOINT = 768;
 export const MIN_TOUCH_TARGET = 44;
 
 /**
+ * The floating capsule tab bar is absolutely positioned, so it sits ON TOP of
+ * screen content. Any screen inside the tabs must reserve this much space at
+ * the bottom or its last control ends up unreachable under the bar.
+ *
+ * capsule height (64) + its bottom offset (~12–34 safe area) + breathing room.
+ */
+export const TAB_BAR_HEIGHT = 64;
+export const TAB_BAR_CLEARANCE = 110;
+
+/**
  * How long the scanner ignores further reads after a successful one.
  * Cameras fire the same barcode many times per second; this makes one
  * physical scan equal one item.

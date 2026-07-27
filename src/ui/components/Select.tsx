@@ -53,6 +53,15 @@ export function Select<T extends string | null>({
 
   const selected = options.find((option) => option.value === value);
 
+  /**
+   * A value that isn't in `options` yet — e.g. a category the user is typing
+   * for the first time — must still be shown. Falling back to the placeholder
+   * made the trigger read "Uncategorised" while a real value was set, which
+   * is a silent mismatch between what is displayed and what will be saved.
+   */
+  const displayLabel = selected?.label ?? (value ? String(value) : placeholder);
+  const hasValue = selected !== undefined || Boolean(value);
+
   return (
     <View>
       {label ? (
@@ -68,7 +77,7 @@ export function Select<T extends string | null>({
         onPress={() => setOpen(true)}
         accessibilityRole="button"
         accessibilityLabel={label ?? title ?? 'Select an option'}
-        accessibilityValue={{ text: selected?.label ?? placeholder }}
+        accessibilityValue={{ text: displayLabel }}
         style={({ pressed }) => [
           styles.trigger,
           {
@@ -82,10 +91,10 @@ export function Select<T extends string | null>({
         <Ionicons name={icon} size={18} color={theme.colors.textMuted} />
         <Txt
           style={{ flex: 1, marginLeft: 10 }}
-          color={selected ? undefined : 'muted'}
+          color={hasValue ? undefined : 'muted'}
           numberOfLines={1}
         >
-          {selected?.label ?? placeholder}
+          {displayLabel}
         </Txt>
         <Ionicons name="chevron-down" size={18} color={theme.colors.textMuted} />
       </Pressable>

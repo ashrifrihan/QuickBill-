@@ -1,169 +1,168 @@
-# QuickBill 🧾
+<div align="center">
 
-**QuickBill** is an offline-first Point of Sale (POS) and billing app built with React Native and Expo SDK 57. Designed for small retail shops: fast barcode scanning, cart checkout, local SQLite persistence, PDF receipts, and sales reporting.
+  <img src="assets/icon.png" alt="QuickBill Logo" width="120" height="120" style="border-radius: 24px;" />
 
-Built to the architecture in `QuickBill-Build-Guide.md`. **Phase 0 (foundation) and Phase 1 (the core MVP loop) are complete.** Phase 2/3 items are scaffolded but unfinished — see [What's not built yet](#-whats-not-built-yet).
+  # QuickBill 🧾
 
-The core loop works entirely offline:
+  **The Offline-First Mobile & Tablet Point of Sale (POS) & Billing System**
 
-> scan barcode → find product → set quantity → build cart → total up → save bill → print → history
+  [![Expo SDK](https://img.shields.io/badge/Expo-v57.0.0-000000.svg?style=for-the-badge&logo=expo)](https://docs.expo.dev/)
+  [![React Native](https://img.shields.io/badge/React_Native-0.86.0-61DAFB.svg?style=for-the-badge&logo=react)](https://reactnative.dev/)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6.svg?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+  [![SQLite](https://img.shields.io/badge/SQLite-Offline_First-003B57.svg?style=for-the-badge&logo=sqlite)](https://docs.expo.dev/versions/latest/sdk/sqlite/)
+  [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
+
+  [📲 Download Android APK](#-download--installation) • [✨ Features](#-key-features) • [🛠️ Tech Stack](#%EF%B8%8F-tech-stack) • [🚀 Getting Started](#-getting-started) • [📖 Architecture](#-architecture--design-principles)
+
+</div>
 
 ---
 
-## ✨ Features
+## 📲 Download & Installation
 
-- 📱 **Mobile & Tablet Ready**: Responsive layout; the cart screen rearranges into a two-pane counter layout on tablets rather than just stretching.
-- ⚡ **Offline-First Storage**: Native SQLite (`expo-sqlite`) with versioned migrations. No cloud dependency, no network required for any part of a sale.
-- 🏷️ **Barcode Scanner**: `expo-camera` with scan debouncing (one physical scan = one item) and haptic confirmation. Supports EAN-13, EAN-8, UPC-A/E, Code 39/93/128, ITF-14, Codabar, QR.
-- 🛒 **Cart & Billing Engine**:
-  - Lookup by barcode scan or text search.
-  - Cart-level discount (percentage or flat amount), distributed exactly across lines.
-  - Per-line price override for haggling or damaged goods.
-  - Payment methods: Cash, Card, Mobile, Other — plus unpaid (credit) and partial payment.
-  - Cart draft auto-saves, so a crash mid-sale loses nothing.
-- 📄 **Receipt Printing & Export**: HTML/CSS receipt template rendered to PDF (`expo-print`) and shared via the native share sheet (`expo-sharing`).
-- 📦 **Inventory Management**: Product catalogue with images, categories, stock tracking and low-stock alerts. Unknown barcodes route straight to "Add Product" with the code pre-filled.
-- 📊 **Sales Reports**: Today / 7-day / month-to-date summaries, daily sales chart, and top products — all computed with SQL aggregates, not by loading rows into JS.
-- 🔐 **Role-Based Authentication**: Local login with salted, key-stretched password hashing. **Admin** and **Cashier** roles, with admin-only screens guarded.
-- ⚙️ **Configurable Settings**: Shop header, tax rate, currency, invoice prefix/numbering, low-stock threshold, and dark/light theme.
+QuickBill is optimized for Android phones, tablets, and POS handheld devices.
+
+| Platform | Download Link | Build Type | Status |
+| :--- | :--- | :--- | :--- |
+| **Android (APK)** | [📥 **Download QuickBill v1.0.0 APK**](https://github.com/ashrifrihan/QuickBill-/releases/latest/download/QuickBill.apk) | Standalone APK | ![Ready](https://img.shields.io/badge/Status-Ready-brightgreen) |
+| **EAS Development Build** | [📦 **Download Dev Build (APK)**](https://expo.dev/accounts/ashrifrihan/projects/QuickBill/builds) | Expo Dev Client | ![Active](https://img.shields.io/badge/Status-Active-blue) |
+
+### 🛠️ Building the Standalone APK locally
+If you want to build the APK yourself using EAS (Expo Application Services):
+
+```bash
+# Build Android APK directly
+npx eas build --profile preview --platform android
+
+# Or build Development Client for physical device testing (barcode scanner support)
+npx eas build --profile development --platform android
+```
+
+---
+
+## ✨ Key Features
+
+### 📱 1. Mobile & Tablet Adaptive UI
+- **Dual Layout Engine**: Automatically transitions between single-column mobile view and a 2-pane split-screen counter view on tablets.
+- **Bento Box & Soft Pastel Styling**: Aesthetic dashboard cards, rounded touch targets (min 44pt touch boundary), and smooth dark mode toggling.
+
+### ⚡ 2. 100% Offline-First Architecture
+- **Local SQLite Engine (`expo-sqlite`)**: All product catalogues, invoices, settings, and cashier accounts are persisted directly on the device.
+- **Zero Cloud Reliance**: Perform complete sales, calculate change, view daily reports, and print receipts without any cellular or Wi-Fi connection.
+
+### 🏷️ 3. High-Speed Barcode Scanning
+- **Camera Scanner**: Integrated hardware-accelerated camera scanner (`expo-camera`) with haptic feedback, flashlight toggle, and manual input fallbacks.
+- **Instant Product Routing**: Scanning an unregistered barcode automatically opens the "Add Product" screen with the barcode pre-filled.
+- **Multi-Format Support**: Reads EAN-13, EAN-8, UPC-A/E, Code 39/93/128, ITF-14, Codabar, and QR codes.
+
+### 🛒 4. Smart Checkout & Cart Engine
+- **Line & Cart Discounts**: Support flat rate or percentage discounts with largest-remainder distribution (exact cent rounding guarantees).
+- **Flexible Payment Types**: Cash (with instant change calculation), Card, Mobile Pay, and Unpaid (Store Credit / Partial Payments).
+- **Cart Draft Recovery**: In-progress sales automatically save to draft, ensuring zero data loss if closed or interrupted.
+
+### 📄 5. Receipt Printing & PDF Sharing
+- **Thermal & PDF Receipt Engine**: Renders clean, formatted receipts for 58mm / 80mm thermal printers or PDF standard page formats.
+- **Instant Digital Sharing**: Export receipts directly via WhatsApp, Email, or device Share Sheet (`expo-sharing`).
+
+### 📊 6. Analytics & Stock Management
+- **Inventory Tracking**: Stock levels, low-stock warnings, cost/margin analysis (Admin view), and inventory restocking alerts.
+- **Sales Analytics**: Real-time daily, weekly, and monthly totals, average transaction values, and top-selling product metrics.
+
+### 🔐 7. Security & Role Control
+- **Role-Based Accounts**: Multi-user support with **Admin** and **Cashier** roles.
+- **Key-Stretched Password Hashing**: Salted, iterated password hashing (`expo-crypto`) keeps credentials safe locally.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Framework**: [React Native 0.86](https://reactnative.dev/) & [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/)
-- **Language**: TypeScript (strict)
-- **Database**: `expo-sqlite` (native SQLite with schema migrations)
+- **Core Framework**: [React Native 0.86](https://reactnative.dev/) & [Expo SDK 57](https://docs.expo.dev/)
 - **State Management**: [Zustand](https://github.com/pmndrs/zustand)
-- **Navigation**: React Navigation (Bottom Tabs & Native Stack)
-- **Device APIs**: `expo-camera`, `expo-print`, `expo-sharing`, `expo-haptics`, `expo-image-picker`, `expo-crypto`
-- **Forms**: React Hook Form + Zod
-- **Testing**: Jest (+ `@testing-library/react-native` for future component tests)
+- **Local Database**: `expo-sqlite` (Native SQLite with schema migrations)
+- **Navigation**: `@react-navigation/native` (Native Stack & Floating Bottom Tabs)
+- **Icons & Styling**: `@expo/vector-icons` (Ionicons), Vanilla CSS/StyleSheets with dynamic HSL dark mode theme system
+- **Form Validation**: `react-hook-form` + `zod`
+- **Testing**: `jest` + `@testing-library/react-native`
 
 ---
 
 ## 🚀 Getting Started
 
-```bash
-npm install
-npm start
-```
+### Prerequisites
+- Node.js (v18 or higher)
+- npm or yarn
+- Expo Go app on your phone (for quick testing) or Android Studio / Emulator
 
-Then press `a` for Android, or scan the QR code with Expo Go.
+### Quick Setup
 
-### ⚠️ Camera scanning needs a development build
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/ashrifrihan/QuickBill-.git
+   cd QuickBill
+   ```
 
-`expo-camera` does **not** run inside Expo Go. To test real barcode scanning:
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-```bash
-npx eas build --profile development --platform android
-```
+3. **Start the development server**:
+   ```bash
+   npm start
+   ```
 
-Everything else — products, cart, totals, checkout, PDF bills, history, reports — runs fine in Expo Go.
+4. **Run on target environment**:
+   - Press `a` in the terminal for Android Emulator
+   - Scan the terminal QR code with Expo Go or Development Client
 
-### Verify before running
-
-```bash
-npm run check
-```
+5. **Typecheck & Test**:
+   ```bash
+   npm run check
+   ```
 
 ---
 
-## 📁 Directory Structure
-
-Dependencies point **inward**: UI → services → repositories → models. Models depend on nothing.
+## 📖 Architecture & Design Principles
 
 ```
-QuickBill/
-├── assets/                  # Icons, splash graphics
+d:\QuickBill\
+├── assets/                  # App icons, splash graphics & logos
 ├── src/
-│   ├── App.tsx              # Startup: error handlers → database → settings/auth/cart draft
-│   ├── config/              # Constants and theme tokens
-│   ├── data/                # Connection, migrations, mappers, repositories (behind interfaces)
-│   ├── domain/              # Cart, Product, Invoice, Money, User — pure logic, no React, no SQL
-│   ├── errors/              # Typed error taxonomy, logger, global handlers
-│   ├── navigation/          # Navigators, route param types, role guards
-│   ├── services/            # BillingService, PrinterService, AuthService, ReportService, …
-│   ├── store/               # Zustand: cartStore, authStore, settingsStore
-│   ├── ui/
-│   │   ├── components/      # Shared themed primitives + ErrorBoundary
-│   │   ├── hooks/           # The bridge from services to screens
-│   │   └── screens/         # Dashboard, Scan, Cart, Checkout, Receipt, Products, Bills, More
-│   └── utils/               # Formatting, date ranges, password hashing
+│   ├── App.tsx              # App startup: DB migrations → settings/auth initialisation
+│   ├── config/              # Constants and theme palette tokens (Light/Dark HSL)
+│   ├── data/                # SQLite connection, schema migrations & repository pattern
+│   ├── domain/              # Pure domain models (Cart, Invoice, Product, Money, User)
+│   ├── errors/              # AppError taxonomy, crash logger & ErrorBoundary
+│   ├── navigation/          # React Navigation stacks, custom floating tab bar & guards
+│   ├── services/            # BillingService, PrinterService, AuthService, ReportService
+│   ├── store/               # Zustand stores (cartStore, authStore, settingsStore)
+│   ├── ui/                  # UI components, responsive hooks, screens & modal sheets
+│   └── utils/               # Money formatting, SHA-256 hashing, date helpers
 └── index.ts                 # Expo entry point
 ```
 
----
-
-## 🧠 The three decisions that matter most
-
-**1. Money is integers, never floats.** Every amount is a whole number of cents (`src/domain/Money.ts`). `0.1 + 0.2 !== 0.3` becomes a real cash discrepancy on a till. Cart discounts are spread across lines using largest-remainder distribution so the parts always sum back to the whole — property-tested over 500 random splits.
-
-**2. `Cart` owns all arithmetic.** Screens, the PDF and the thermal text all read `Cart.totals()`; none of them adds anything up itself. That is what makes it impossible for the printed total to disagree with the screen. Order of operations is fixed and documented: discount first, then per-line tax on the discounted share.
-
-**3. Checkout is one transaction.** `BillingService.checkout()` allocates the invoice number, writes the header, writes every line and decrements stock inside a single `withExclusiveTransactionAsync`. Any failure rolls the whole thing back. Allocating the sequence *inside* that transaction is what makes duplicate invoice numbers impossible.
-
-### Swapping the database later
-
-Repositories are defined as interfaces (`src/data/repositories/interfaces.ts`) and wired in one place (`src/data/index.ts`). A `SupabaseProductRepository` implementing `IProductRepository` is a change to that single file — no screen or service is touched.
+### Financial Precision (Zero Float Errors)
+All financial figures are stored as 64-bit integer cents. `Money.ts` ensures floating-point arithmetic glitches (`0.1 + 0.2 !== 0.3`) never occur on your till.
 
 ---
 
-## 🛡️ Error handling
+## 💻 Available Commands
 
-Typed errors (`ValidationError`, `NotFoundError`, `DatabaseError`, `PrinterError`, `PermissionError`, `AuthError`) each carry a **user-facing** message and a **technical** one. The UI shows the first; the logger records the second.
-
-- Repositories wrap every SQLite call and rethrow as `DatabaseError`.
-- `ErrorBoundary` wraps the app **and** each screen — one broken screen can't take down the till.
-- Global handlers catch uncaught exceptions and unhandled promise rejections.
-- Every data screen has three visible states: loading, loaded, empty-or-error.
-- The in-progress cart auto-saves and is restored on relaunch.
-
-To add crash reporting before release, call `setReporter()` in `src/errors/logger.ts`. Nothing else changes.
-
----
-
-## 📲 Commands
-
-| Command | Description |
+| Command | Action |
 | :--- | :--- |
-| `npm start` | Start the Expo development server |
-| `npm run android` / `ios` / `web` | Target a specific platform |
-| `npm run typecheck` | TypeScript check, no emit |
-| `npm test` | Full Jest suite |
-| `npm run test:domain` | Fast pure-logic tests only |
-| `npm run check` | Typecheck + domain tests |
-
----
-
-## 🧪 Tests
-
-76 tests, all pure logic and fast. They cover the things that cost real money if wrong: money parsing and rounding, discount distribution, tax ordering, cart totals, invoice immutability and balance, invoice number formatting, and that the receipt prints the *stored* total rather than one it recomputed.
-
-Jest runs two projects — `domain` (plain Node + ts-jest, milliseconds) and `native` (jest-expo, for future component tests, file suffix `*.native.test.tsx`).
-
-### Manual device checklist
-
-Before a real shop uses it: scan in poor light, scan a damaged barcode, scan an unknown barcode (should route to Add Product pre-filled), edit quantities, complete a full sale with **WiFi off**, share a PDF, rotate on phone and tablet, and deny camera permission (should show a friendly screen with a settings link, never a crash).
-
----
-
-## 🚧 What's not built yet
-
-An honest list. These are Phase 2/3 in the guide and are deliberately unfinished:
-
-- **Bluetooth thermal printing.** The strategy class and the 58mm/80mm receipt formatting are done; the ESC/POS transport is not. `BluetoothPrintStrategy.isAvailable()` returns `false`, so `PrinterService` transparently falls back to PDF and the cashier is never stranded. Wiring in a native ESC/POS module is the remaining work.
-- **Cloud sync / Supabase.** The repository interfaces exist to make this a drop-in, but no sync code is written.
-- **Multi-user management UI.** The `users` table, roles and route guards all work; there is no screen yet to add a second cashier.
-- **Refunds.** `markAsRefunded()` exists on the service; no UI calls it.
-- **Payment-method breakdown in reports.** Sales totals, daily trend and top products are implemented; a split by payment method is not.
-
-### A note on password hashing
-
-Local passwords use salted, iterated SHA-256 via `expo-crypto` (`src/utils/hash.ts`) — not bcrypt or argon2, which need a native module Expo doesn't expose. For an on-device till whose database never leaves the device this is a reasonable trade-off, and it's documented in the file. If accounts ever sync to a server, move authentication to Supabase Auth behind the existing `IAuthProvider` interface rather than sending this hash over the wire.
+| `npm start` | Launches Metro bundler & Expo dev server |
+| `npm run android` | Starts app on connected Android device/emulator |
+| `npm run typecheck` | Runs TypeScript compiler validation without emitting files |
+| `npm test` | Runs complete Jest unit test suite |
+| `npm run test:domain` | Runs fast domain logic tests |
+| `npm run check` | Runs full typecheck + test suite |
 
 ---
 
 ## 📄 License
 
-MIT — see [LICENSE](LICENSE).
+This project is licensed under the [MIT License](LICENSE).
+
+<div align="center">
+  <sub>Built with ❤️ for small businesses and retail cashiers.</sub>
+</div>

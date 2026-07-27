@@ -24,21 +24,24 @@ export function buildReceiptHtml(invoice: Invoice, shop: ReceiptShopInfo): strin
     .map(
       (item) => `
         <tr>
-          <td class="name">
+          <td class="desc">
             ${escapeHtml(item.productName)}
-            <span class="meta">${item.quantity} × ${money(item.unitPrice)}${
-              item.taxRate > 0 ? ` · tax ${escapeHtml(formatPercent(item.taxRate))}` : ''
+            <span class="sub">${item.quantity} x ${money(item.unitPrice)}${
+              item.taxRate > 0 ? ` (tax ${escapeHtml(formatPercent(item.taxRate))})` : ''
             }</span>
           </td>
           <td class="qty">${item.quantity}</td>
-          <td class="amount">${money(item.lineTotal)}</td>
+          <td class="cost">${money(item.lineTotal)}</td>
         </tr>`,
     )
     .join('');
 
-  const optionalRow = (label: string, amount: number, show: boolean) =>
+  const totalRow = (label: string, amount: number, show: boolean, bold = false) =>
     show
-      ? `<tr><td colspan="2">${escapeHtml(label)}</td><td class="amount">${money(amount)}</td></tr>`
+      ? `<tr class="${bold ? 'grand' : ''}">
+           <td colspan="2">${escapeHtml(label)}</td>
+           <td class="cost">${money(amount)}</td>
+         </tr>`
       : '';
 
   return `<!DOCTYPE html>
@@ -47,105 +50,112 @@ export function buildReceiptHtml(invoice: Invoice, shop: ReceiptShopInfo): strin
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
+  /*
+    Deliberately plain: this is a till receipt, not a document. Monospace and
+    dashed rules mean it reads the same whether it is shared as a PDF or sent
+    to an 80mm thermal printer, and it stays legible photocopied or faxed.
+  */
   * { box-sizing: border-box; }
   body {
-    font-family: -apple-system, "Helvetica Neue", Roboto, sans-serif;
-    color: #0f172a;
+    font-family: "Courier New", Courier, monospace;
+    color: #000;
+    background: #fff;
     margin: 0;
-    padding: 24px;
-    font-size: 13px;
+    padding: 16px;
+    font-size: 12px;
+    line-height: 1.45;
   }
-  .receipt { max-width: 420px; margin: 0 auto; }
-  header { text-align: center; border-bottom: 2px dashed #cbd5e1; padding-bottom: 14px; }
-  h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: 0.5px; }
-  .shop-meta { color: #64748b; font-size: 11px; line-height: 1.5; }
-  .invoice-meta {
-    display: flex; justify-content: space-between;
-    font-size: 11px; color: #475569; margin: 14px 0;
+  .receipt { max-width: 320px; margin: 0 auto; }
+  .center { text-align: center; }
+  h1 {
+    font-size: 16px;
+    margin: 0 0 2px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
   }
-  table { width: 100%; border-collapse: collapse; }
-  thead th {
-    text-align: left; font-size: 10px; text-transform: uppercase;
-    letter-spacing: 0.6px; color: #64748b;
-    border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;
+  .shop-meta { font-size: 11px; }
+  .rule { border-top: 1px dashed #000; margin: 8px 0; }
+  .meta { width: 100%; font-size: 11px; }
+  .meta td { padding: 1px 0; }
+  .meta td:last-child { text-align: right; }
+  table.items { width: 100%; border-collapse: collapse; }
+  table.items thead th {
+    font-size: 11px;
+    text-align: left;
+    text-transform: uppercase;
+    border-bottom: 1px dashed #000;
+    padding-bottom: 3px;
+    font-weight: bold;
   }
-  tbody td { padding: 8px 0; vertical-align: top; border-bottom: 1px solid #f1f5f9; }
-  .name { width: 60%; font-weight: 600; }
-  .meta { display: block; font-weight: 400; color: #64748b; font-size: 11px; margin-top: 2px; }
-  .qty { width: 12%; text-align: center; color: #475569; }
-  .amount { width: 28%; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  tfoot td { padding: 5px 0; }
+  table.items td { padding: 4px 0; vertical-align: top; }
+  .desc { width: 58%; }
+  .sub { display: block; font-size: 10.5px; padding-left: 8px; }
+  .qty { width: 12%; text-align: center; }
+  .cost { width: 30%; text-align: right; white-space: nowrap; }
+  tfoot td { padding: 2px 0; }
   tfoot .grand td {
-    border-top: 2px solid #0f172a; padding-top: 10px;
-    font-size: 17px; font-weight: 700;
+    border-top: 1px dashed #000;
+    padding-top: 5px;
+    font-size: 14px;
+    font-weight: bold;
   }
-  footer {
-    margin-top: 20px; text-align: center; font-size: 11px;
-    color: #64748b; border-top: 2px dashed #cbd5e1; padding-top: 14px;
-  }
-  .badge {
-    display: inline-block; padding: 3px 10px; border-radius: 999px;
-    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
-  }
-  .paid   { background: #dcfce7; color: #166534; }
-  .unpaid { background: #fee2e2; color: #991b1b; }
+  .thanks { margin-top: 10px; font-size: 12px; letter-spacing: 1px; }
+  .footnote { font-size: 10px; margin-top: 4px; }
 </style>
 </head>
 <body>
   <div class="receipt">
-    <header>
+    <div class="center">
       <h1>${escapeHtml(shop.name)}</h1>
       <div class="shop-meta">
         ${shop.address ? `${escapeHtml(shop.address)}<br/>` : ''}
         ${shop.phone ? escapeHtml(shop.phone) : ''}
       </div>
-    </header>
-
-    <div class="invoice-meta">
-      <div>
-        <strong>${escapeHtml(invoice.invoiceNo)}</strong><br/>
-        ${escapeHtml(formatDateTime(invoice.createdAt))}
-      </div>
-      <div style="text-align:right">
-        <span class="badge ${invoice.isPaid() ? 'paid' : 'unpaid'}">
-          ${escapeHtml(invoice.paymentStatus)}
-        </span><br/>
-        ${invoice.cashierName ? `Served by ${escapeHtml(invoice.cashierName)}` : ''}
-      </div>
     </div>
 
-    ${
-      invoice.customerName
-        ? `<div class="invoice-meta"><div>Customer: <strong>${escapeHtml(
-            invoice.customerName,
-          )}</strong></div></div>`
-        : ''
-    }
+    <div class="rule"></div>
 
-    <table>
+    <table class="meta">
+      <tr><td>Receipt :</td><td>${escapeHtml(invoice.invoiceNo)}</td></tr>
+      <tr><td>Date :</td><td>${escapeHtml(formatDateTime(invoice.createdAt))}</td></tr>
+      ${invoice.cashierName ? `<tr><td>Cashier :</td><td>${escapeHtml(invoice.cashierName)}</td></tr>` : ''}
+      ${invoice.customerName ? `<tr><td>Customer :</td><td>${escapeHtml(invoice.customerName)}</td></tr>` : ''}
+      <tr><td>Status :</td><td>${escapeHtml(invoice.paymentStatus.toUpperCase())}</td></tr>
+    </table>
+
+    <div class="rule"></div>
+
+    <table class="items">
       <thead>
-        <tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Amount</th></tr>
+        <tr>
+          <th>Item</th>
+          <th style="text-align:center">Qty</th>
+          <th style="text-align:right">Cost</th>
+        </tr>
       </thead>
       <tbody>${rows}</tbody>
       <tfoot>
-        <tr><td colspan="2">Subtotal</td><td class="amount">${money(invoice.subtotal)}</td></tr>
-        ${optionalRow('Discount', -invoice.discount, invoice.discount > 0)}
-        ${optionalRow('Tax', invoice.tax, invoice.tax > 0)}
-        <tr class="grand">
-          <td colspan="2">Total</td>
-          <td class="amount">${money(invoice.grandTotal)}</td>
-        </tr>
-        ${optionalRow('Paid', invoice.amountPaid, invoice.amountPaid > 0)}
-        ${optionalRow('Change', invoice.changeDue(), invoice.changeDue() > 0)}
-        ${optionalRow('Balance due', invoice.balanceDue(), invoice.balanceDue() > 0)}
+        <tr><td colspan="3"><div class="rule"></div></td></tr>
+        ${totalRow('Sub Total', invoice.subtotal, true)}
+        ${totalRow('Discount', -invoice.discount, invoice.discount > 0)}
+        ${totalRow('Tax', invoice.tax, invoice.tax > 0)}
+        ${totalRow('TOTAL', invoice.grandTotal, true, true)}
+        ${totalRow('Paid', invoice.amountPaid, invoice.amountPaid > 0)}
+        ${totalRow('Change', invoice.changeDue(), invoice.changeDue() > 0)}
+        ${totalRow('Balance Due', invoice.balanceDue(), invoice.balanceDue() > 0)}
       </tfoot>
     </table>
 
-    <footer>
-      ${invoice.note ? `${escapeHtml(invoice.note)}<br/><br/>` : ''}
-      Thank you for your business!<br/>
-      <span style="font-size:10px">${invoice.unitCount()} item(s) · Generated by QuickBill</span>
-    </footer>
+    <div class="rule"></div>
+
+    <div class="center">
+      ${invoice.note ? `<div class="footnote">${escapeHtml(invoice.note)}</div>` : ''}
+      <div class="thanks">THANK YOU FOR SHOPPING!</div>
+      <div class="footnote">
+        ${invoice.unitCount()} item(s) &middot; Paid by ${escapeHtml(invoice.paymentMethod)}
+      </div>
+      <div class="footnote">Generated by QuickBill</div>
+    </div>
   </div>
 </body>
 </html>`;

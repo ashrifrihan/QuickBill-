@@ -84,3 +84,19 @@ export function escapeHtml(value: string): string {
 export function truncate(value: string, max: number): string {
   return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
 }
+
+/**
+ * Resolves a typed category name against the ones already in use.
+ *
+ * Returns the EXISTING spelling when the name matches case-insensitively, so
+ * typing "drink" when "Drink" already exists reuses "Drink" instead of creating
+ * a second category that filters separately. Returns null for blank input,
+ * which the caller stores as "uncategorised".
+ */
+export function canonicaliseCategory(input: string, known: readonly string[]): string | null {
+  const trimmed = input.trim().replace(/\s+/g, ' ');
+  if (trimmed === '') return null;
+
+  const match = known.find((name) => name.toLowerCase() === trimmed.toLowerCase());
+  return match ?? trimmed;
+}

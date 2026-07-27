@@ -26,6 +26,7 @@ import { productService } from '../../../services/ProductService';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { useProductCategories } from '../../hooks/useProducts';
 import { Select } from '../../components/Select';
+import { canonicaliseCategory } from '../../../utils/format';
 import { useTheme } from '../../hooks/useResponsive';
 import { useScanner } from '../../hooks/useScanner';
 import {
@@ -60,7 +61,16 @@ const moneyField = (label: string) =>
 const schema = z.object({
   barcode: z.string().trim().min(1, 'Barcode is required.').max(64, 'Barcode is too long.'),
   name: z.string().trim().min(1, 'Product name is required.').max(120, 'Name is too long.'),
-  category: z.string().trim().optional(),
+  category: z
+    .string()
+    .trim()
+    .max(40, 'Category name is too long.')
+    .refine((value) => value === '' || /[\p{L}\p{N}]/u.test(value), {
+      // Blocks a "category" of only punctuation or spaces, which would show as
+      // an invisible entry in the filter dropdown forever.
+      message: 'Category needs at least one letter or number.',
+    })
+    .optional(),
   purchasePrice: moneyField('purchase price'),
   sellingPrice: moneyField('selling price'),
   taxPercent: z
@@ -183,7 +193,10 @@ export function ProductFormScreen() {
         id: params?.productId,
         barcode: values.barcode.trim(),
         name: values.name.trim(),
-        category: values.category?.trim() || null,
+        // Reuses an existing spelling on a case-insensitive match, so
+        // "drink" typed against an existing "Drink" does not create a second
+        // category that filters as a separate group.
+        category: canonicaliseCategory(values.category ?? '', categories),
         purchasePrice: parseMoney(values.purchasePrice) ?? 0,
         sellingPrice: parseMoney(values.sellingPrice) ?? 0,
         taxRate: values.taxPercent.trim() === '' ? 0 : Number(values.taxPercent) / 100,
@@ -326,37 +339,80 @@ export function ProductFormScreen() {
         <Controller
           control={control}
           name="category"
-          render={({ field: { onChange, value } }) => (
-            <>
-              <Select<string | null>
-                label="Category (optional)"
-                value={value ? value : null}
-                onChange={(next) => onChange(next ?? '')}
-                title="Choose a category"
-                placeholder="Uncategorised"
-                error={errors.category?.message}
-                options={[
-                  { value: null, label: 'Uncategorised' },
-                  ...categories.map((name) => ({ value: name, label: name })),
-                ]}
-                onCreate={() => setNewCategoryMode(true)}
-                createLabel="Type a new category"
-              />
-              {newCategoryMode ? (
-                <>
-                  <Spacer size={theme.spacing.sm} />
-                  <Field
-                    label="New category name"
-                    value={value ?? ''}
-                    onChangeText={onChange}
-                    placeholder="e.g. Beverages"
-                    autoFocus
-                    hint="Saved with the product and offered next time."
-                  />
-                </>
-              ) : null}
-            </>
-          )}
+          render={({ field: { onChange, value } }) => {
+            const current = value ?? '';
+            const isKnown = categories.some(
+              (name) => name.toLowerCase() === current.trim().toLowerCase(),
+            );
+            // Surface a freshly typed name in the dropdown too, so the trigger
+            // and the text field can never disagree about what will be saved.
+            const transient =
+              current.trim() !== '' && !isKnown
+                ? [{ value: current, label: current.trim(), hint: 'new' }]
+                : [];
+
+            return (
+              <>
+                <Select<string | null>
+                  label="Category (optional)"
+                  value={current === '' ? null : current}
+                  onChange={(next) => {
+                    // Picking from the list ALWAYS leaves typing mode.
+                    // Without this the "New category name" box stayed on
+                    // screen showing a stale value after choosing an
+                    // existing category.
+                    setNewCategoryMode(false);
+                    onChange(next ?? '');
+                  }}
+                  title="Choose a category"
+                  placeholder="Uncategorised"
+                  error={errors.category?.message}
+                  options={[
+                    { value: null, label: 'Uncategorised' },
+                    ...categories.map((name) => ({ value: name, label: name })),
+                    ...transient,
+                  ]}
+                  onCreate={() => {
+                    // Start from empty so the user types a genuinely new name
+                    // rather than editing the one they just had selected.
+                    onChange('');
+                    setNewCategoryMode(true);
+                  }}
+                  createLabel="Type a new category"
+                />
+
+                {newCategoryMode ? (
+                  <>
+                    <Spacer size={theme.spacing.sm} />
+                    <Field
+                      label="New category name"
+                      value={current}
+                      onChangeText={onChange}
+                      placeholder="e.g. Beverages"
+                      autoFocus
+                      maxLength={40}
+                      error={errors.category?.message}
+                      hint={
+                        isKnown
+                          ? 'That category already exists — it will be reused, not duplicated.'
+                          : 'Saved with the product and offered next time.'
+                      }
+                    />
+                    <Spacer size={theme.spacing.sm} />
+                    <Button
+                      title="Cancel new category"
+                      variant="ghost"
+                      size="small"
+                      onPress={() => {
+                        onChange('');
+                        setNewCategoryMode(false);
+                      }}
+                    />
+                  </>
+                ) : null}
+              </>
+            );
+          }}
         />
       </Card>
 

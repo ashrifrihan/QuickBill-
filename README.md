@@ -12,7 +12,7 @@
   [![SQLite](https://img.shields.io/badge/SQLite-Offline_First-003B57.svg?style=for-the-badge&logo=sqlite)](https://docs.expo.dev/versions/latest/sdk/sqlite/)
   [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-  [📲 **Download APK**](https://expo.dev/accounts/ashrif_rihan/projects/QuickBill/builds/71d3cfdf-6137-4f7d-8e11-edd48c052b14) • [✨ Features](#-key-features) • [🛠️ Tech Stack](#%EF%B8%8F-tech-stack) • [🚀 Getting Started](#-getting-started) • [📖 Architecture](#-architecture--design-principles)
+  [📲 **Download APK**](https://expo.dev/accounts/ashrif_rihan/projects/QuickBill/builds/71d3cfdf-6137-4f7d-8e11-edd48c052b14) • [📱 **Screenshots**](#-app-screenshots--user-flow) • [✨ Features](#-key-features) • [🛠️ Tech Stack](#%EF%B8%8F-tech-stack) • [🚀 Getting Started](#-getting-started) • [📖 Architecture](#-architecture--design-principles)
 
 </div>
 
@@ -36,12 +36,44 @@ and the till is ready.
 | **Works offline** | Yes — completely |
 | **Requires** | Android 7.0+ with a rear camera for scanning |
 
-> The link points at one specific build. Producing a new APK (see below) creates
-> a new link, so update this section whenever you rebuild.
+---
+
+## 📱 App Screenshots & User Flow
+
+Experience the intuitive cashier workflow from sign-in to checkout and settings:
+
+<div align="center">
+
+### 1. Authentication & Till Dashboard
+
+| 🔑 Step 1: Sign In | 🏠 Step 2: Sales Dashboard | 📷 Step 3: Barcode Scanner |
+| :---: | :---: | :---: |
+| <img src="systemScreenshots/Login%20page.jpg" width="250" alt="Login Screen" style="border-radius: 12px;" /> | <img src="systemScreenshots/Home%20page.jpg" width="250" alt="Home Dashboard" style="border-radius: 12px;" /> | <img src="systemScreenshots/Scan%20page.jpg" width="250" alt="Scan Page" style="border-radius: 12px;" /> |
+| *Offline salted login authentication & security features* | *Live daily revenue, active bill banner & low-stock metrics* | *Hardware-accelerated barcode reader with torch control* |
+
+<br/>
+
+### 2. Product Catalogue & Sales History
+
+| 📦 Step 4: Product Catalogue | 🧾 Step 5: Bill History | 📄 Step 6: Invoice Details |
+| :---: | :---: | :---: |
+| <img src="systemScreenshots/Product%20page.jpg" width="250" alt="Product Catalogue" style="border-radius: 12px;" /> | <img src="systemScreenshots/Bill%20page.jpg" width="250" alt="Bill History" style="border-radius: 12px;" /> | <img src="systemScreenshots/Bill%20details%20page.jpg" width="250" alt="Bill Details" style="border-radius: 12px;" /> |
+| *Stock management, pricing tiers & instant barcode lookup* | *Searchable bill registry with payment status indicators* | *Itemized invoice summary with PDF printing & sharing* |
+
+<br/>
+
+### 3. Profile & System Configuration
+
+| ⚙️ Step 7: Profile & Shop Settings |
+| :---: |
+| <img src="systemScreenshots/Profile%20page.jpg" width="280" alt="Profile and Settings" style="border-radius: 12px;" /> |
+| *Shop profile, tax configurations, dark mode toggle & Nexzoa developer credits* |
+
+</div>
 
 ---
 
-### 🔄 Building a new APK
+## 🔄 Building a new APK
 
 ```bash
 npx eas build --profile preview --platform android
@@ -58,26 +90,6 @@ URL into the heading above.
 All builds for this project live at
 [expo.dev → QuickBill builds](https://expo.dev/accounts/ashrif_rihan/projects/QuickBill/builds)
 (requires signing in to the Expo account that owns the project).
-
-### 📎 Optional — host the APK on GitHub Releases
-
-The Expo link above is tied to one build. For a permanent, sign-in-free URL,
-download the APK from Expo and attach it to a release:
-
-```bash
-gh release create v1.0.0 ./QuickBill.apk --title "QuickBill v1.0.0" --notes "First release"
-```
-
-That makes
-`https://github.com/ashrifrihan/QuickBill-/releases/latest/download/QuickBill.apk`
-a real download. **There are no releases on this repo yet**, so that URL 404s
-until you run the command above.
-
-### ⚠️ Expo Go is not enough
-
-Barcode scanning uses `expo-camera`, which is **not** available in Expo Go.
-Products, cart, checkout, bills, PDF receipts and reports all work in Expo Go —
-scanning does not. Install the APK above for the full app.
 
 ---
 
@@ -168,6 +180,7 @@ scanning does not. Install the APK above for the full app.
 ```
 d:\QuickBill\
 ├── assets/                  # App icons, splash graphics & logos
+├── systemScreenshots/       # System screenshots for user flow documentation
 ├── src/
 │   ├── App.tsx              # App startup: DB migrations → settings/auth initialisation
 │   ├── config/              # Constants and theme palette tokens (Light/Dark HSL)
@@ -205,5 +218,5 @@ All financial figures are stored as 64-bit integer cents. `Money.ts` ensures flo
 This project is licensed under the [MIT License](LICENSE).
 
 <div align="center">
-  <sub>Built with ❤️ for small businesses and retail cashiers.</sub>
+  <sub>Built with ❤️ for small businesses and retail cashiers by Nexzoa.</sub>
 </div>

@@ -12,7 +12,7 @@
   [![SQLite](https://img.shields.io/badge/SQLite-Offline_First-003B57.svg?style=for-the-badge&logo=sqlite)](https://docs.expo.dev/versions/latest/sdk/sqlite/)
   [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-  [📲 Install on Android](#-install-on-android) • [✨ Features](#-key-features) • [🛠️ Tech Stack](#%EF%B8%8F-tech-stack) • [🚀 Getting Started](#-getting-started) • [📖 Architecture](#-architecture--design-principles)
+  [📲 **Download APK**](https://expo.dev/accounts/ashrif_rihan/projects/QuickBill/builds/71d3cfdf-6137-4f7d-8e11-edd48c052b14) • [✨ Features](#-key-features) • [🛠️ Tech Stack](#%EF%B8%8F-tech-stack) • [🚀 Getting Started](#-getting-started) • [📖 Architecture](#-architecture--design-principles)
 
 </div>
 
@@ -20,54 +20,64 @@
 
 ## 📲 Install on Android
 
-> **No prebuilt APK is published yet.** There are no GitHub Releases on this repo,
-> so you need to produce a build once. It takes one command and about 10–20 minutes
-> on Expo's free tier.
+### 📥 [**Download & install QuickBill v1.0.0**](https://expo.dev/accounts/ashrif_rihan/projects/QuickBill/builds/71d3cfdf-6137-4f7d-8e11-edd48c052b14)
 
-### Step 1 — Build the APK
+**Open that link on the Android phone itself** — then tap **Install**.
+
+Android will warn about installing from an unknown source; allow it for your
+browser and continue. Nothing else is needed — no account, no sign-up, no
+internet. On first launch QuickBill asks you to create the shop's owner account,
+and the till is ready.
+
+| | |
+| :--- | :--- |
+| **Build** | `preview` · standalone APK · `arm64` Android |
+| **Version** | 1.0.0 (`com.quickbill.pos`) |
+| **Works offline** | Yes — completely |
+| **Requires** | Android 7.0+ with a rear camera for scanning |
+
+> The link points at one specific build. Producing a new APK (see below) creates
+> a new link, so update this section whenever you rebuild.
+
+---
+
+### 🔄 Building a new APK
 
 ```bash
 npx eas build --profile preview --platform android
 ```
 
-The first run asks two questions: it creates the EAS project, and offers to
-generate an Android keystore — answer **yes** to both. When the build finishes,
-the terminal prints a download URL and a QR code.
-
-### Step 2 — Install it on your phone
-
-Open that URL on the phone (or scan the QR code) and tap the APK. Android will
-warn about installing from an unknown source — allow it for your browser, then
-install. Nothing else is needed: the app works with no account and no internet.
-
-You can also find every build at
-**[expo.dev → your builds](https://expo.dev/accounts/ashrif_rihan/projects/QuickBill/builds)**
-once the first one has run.
-
-### Which profile do I want?
+When it finishes, the terminal prints a fresh install URL and QR code. Swap that
+URL into the heading above.
 
 | Profile | Command | Use it for |
 | :--- | :--- | :--- |
-| `preview` | `npx eas build --profile preview --platform android` | A normal standalone APK to hand to a shop. **Start here.** |
-| `development` | `npx eas build --profile development --platform android` | Day-to-day development with hot reload against `npm start`. |
+| `preview` | `npx eas build --profile preview --platform android` | A standalone APK to hand to a shop. **This is the one above.** |
+| `development` | `npx eas build --profile development --platform android` | Development with hot reload against `npm start`. |
 
-### Publishing the APK as a download link
+All builds for this project live at
+[expo.dev → QuickBill builds](https://expo.dev/accounts/ashrif_rihan/projects/QuickBill/builds)
+(requires signing in to the Expo account that owns the project).
 
-To turn a build into the permanent link this section used to claim, download the
-APK from Expo and attach it to a GitHub Release:
+### 📎 Optional — host the APK on GitHub Releases
+
+The Expo link above is tied to one build. For a permanent, sign-in-free URL,
+download the APK from Expo and attach it to a release:
 
 ```bash
 gh release create v1.0.0 ./QuickBill.apk --title "QuickBill v1.0.0" --notes "First release"
 ```
 
-After that, `https://github.com/ashrifrihan/QuickBill-/releases/latest/download/QuickBill.apk`
-becomes a real link.
+That makes
+`https://github.com/ashrifrihan/QuickBill-/releases/latest/download/QuickBill.apk`
+a real download. **There are no releases on this repo yet**, so that URL 404s
+until you run the command above.
 
 ### ⚠️ Expo Go is not enough
 
-Barcode scanning uses `expo-camera`, which is **not** available in Expo Go. Products,
-cart, checkout, bills, PDF receipts and reports all work in Expo Go — scanning does
-not. Use one of the builds above for the full app.
+Barcode scanning uses `expo-camera`, which is **not** available in Expo Go.
+Products, cart, checkout, bills, PDF receipts and reports all work in Expo Go —
+scanning does not. Install the APK above for the full app.
 
 ---
 

@@ -12,7 +12,7 @@
   [![SQLite](https://img.shields.io/badge/SQLite-Offline_First-003B57.svg?style=for-the-badge&logo=sqlite)](https://docs.expo.dev/versions/latest/sdk/sqlite/)
   [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-  [📲 **Download APK**](https://expo.dev/accounts/ashrif_rihan/projects/QuickBill/builds/71d3cfdf-6137-4f7d-8e11-edd48c052b14) • [📱 **Screenshots**](#-app-screenshots--user-flow) • [✨ Features](#-key-features) • [🛠️ Tech Stack](#%EF%B8%8F-tech-stack) • [🚀 Getting Started](#-getting-started) • [📖 Architecture](#-architecture--design-principles)
+  [📲 **Download APK**](https://expo.dev/accounts/ashrif_rihan/projects/QuickBill/builds/fa9dc009-3148-4aa6-b9fd-d87e1f53da77) • [📱 **Screenshots**](#-app-screenshots--user-flow) • [✨ Features](#-key-features) • [🛠️ Tech Stack](#%EF%B8%8F-tech-stack) • [🚀 Getting Started](#-getting-started) • [📖 Architecture](#-architecture--design-principles)
 
 </div>
 
@@ -20,7 +20,7 @@
 
 ## 📲 Install on Android
 
-### 📥 [**Download & install QuickBill v1.0.0**](https://expo.dev/accounts/ashrif_rihan/projects/QuickBill/builds/71d3cfdf-6137-4f7d-8e11-edd48c052b14)
+### 📥 [**Download & install QuickBill v1.0.0**](https://expo.dev/accounts/ashrif_rihan/projects/QuickBill/builds/fa9dc009-3148-4aa6-b9fd-d87e1f53da77)
 
 **Open that link on the Android phone itself** — then tap **Install**.
 

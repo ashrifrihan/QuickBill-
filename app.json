@@ -24,7 +24,8 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.quickbill.pos",
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -47,6 +48,11 @@
         }
       ],
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "944aedbe-749c-4b49-bef0-d194989a19b9"
+      }
+    }
   }
 }

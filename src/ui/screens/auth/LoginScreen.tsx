@@ -182,12 +182,17 @@ export function LoginScreen() {
           <Spacer size={theme.spacing.lg} />
 
           <Animated.View style={footerStyle}>
-            <Row gap={6} style={{ justifyContent: 'center' }}>
-              <Ionicons name="shield-checkmark-outline" size={14} color={theme.colors.textMuted} />
-              <Txt variant="caption" color="muted">
-                Every sale is stored on this device only
+            <View style={{ alignItems: 'center', gap: 6 }}>
+              <Row gap={6} style={{ justifyContent: 'center' }}>
+                <Ionicons name="shield-checkmark-outline" size={14} color={theme.colors.textMuted} />
+                <Txt variant="caption" color="muted">
+                  Every sale is stored on this device only
+                </Txt>
+              </Row>
+              <Txt variant="caption" color="muted" style={{ opacity: 0.7, fontSize: 11, fontWeight: '600' }}>
+                Powered by Nexzoa
               </Txt>
-            </Row>
+            </View>
           </Animated.View>
         </View>
       </KeyboardAvoidingView>

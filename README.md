@@ -12,31 +12,62 @@
   [![SQLite](https://img.shields.io/badge/SQLite-Offline_First-003B57.svg?style=for-the-badge&logo=sqlite)](https://docs.expo.dev/versions/latest/sdk/sqlite/)
   [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-  [📲 Download Android APK](#-download--installation) • [✨ Features](#-key-features) • [🛠️ Tech Stack](#%EF%B8%8F-tech-stack) • [🚀 Getting Started](#-getting-started) • [📖 Architecture](#-architecture--design-principles)
+  [📲 Install on Android](#-install-on-android) • [✨ Features](#-key-features) • [🛠️ Tech Stack](#%EF%B8%8F-tech-stack) • [🚀 Getting Started](#-getting-started) • [📖 Architecture](#-architecture--design-principles)
 
 </div>
 
 ---
 
-## 📲 Download & Installation
+## 📲 Install on Android
 
-QuickBill is optimized for Android phones, tablets, and POS handheld devices.
+> **No prebuilt APK is published yet.** There are no GitHub Releases on this repo,
+> so you need to produce a build once. It takes one command and about 10–20 minutes
+> on Expo's free tier.
 
-| Platform | Download Link | Build Type | Status |
-| :--- | :--- | :--- | :--- |
-| **Android (APK)** | [📥 **Download QuickBill v1.0.0 APK**](https://github.com/ashrifrihan/QuickBill-/releases/latest/download/QuickBill.apk) | Standalone APK | ![Ready](https://img.shields.io/badge/Status-Ready-brightgreen) |
-| **EAS Development Build** | [📦 **Download Dev Build (APK)**](https://expo.dev/accounts/ashrifrihan/projects/QuickBill/builds) | Expo Dev Client | ![Active](https://img.shields.io/badge/Status-Active-blue) |
-
-### 🛠️ Building the Standalone APK locally
-If you want to build the APK yourself using EAS (Expo Application Services):
+### Step 1 — Build the APK
 
 ```bash
-# Build Android APK directly
 npx eas build --profile preview --platform android
-
-# Or build Development Client for physical device testing (barcode scanner support)
-npx eas build --profile development --platform android
 ```
+
+The first run asks two questions: it creates the EAS project, and offers to
+generate an Android keystore — answer **yes** to both. When the build finishes,
+the terminal prints a download URL and a QR code.
+
+### Step 2 — Install it on your phone
+
+Open that URL on the phone (or scan the QR code) and tap the APK. Android will
+warn about installing from an unknown source — allow it for your browser, then
+install. Nothing else is needed: the app works with no account and no internet.
+
+You can also find every build at
+**[expo.dev → your builds](https://expo.dev/accounts/ashrif_rihan/projects/QuickBill/builds)**
+once the first one has run.
+
+### Which profile do I want?
+
+| Profile | Command | Use it for |
+| :--- | :--- | :--- |
+| `preview` | `npx eas build --profile preview --platform android` | A normal standalone APK to hand to a shop. **Start here.** |
+| `development` | `npx eas build --profile development --platform android` | Day-to-day development with hot reload against `npm start`. |
+
+### Publishing the APK as a download link
+
+To turn a build into the permanent link this section used to claim, download the
+APK from Expo and attach it to a GitHub Release:
+
+```bash
+gh release create v1.0.0 ./QuickBill.apk --title "QuickBill v1.0.0" --notes "First release"
+```
+
+After that, `https://github.com/ashrifrihan/QuickBill-/releases/latest/download/QuickBill.apk`
+becomes a real link.
+
+### ⚠️ Expo Go is not enough
+
+Barcode scanning uses `expo-camera`, which is **not** available in Expo Go. Products,
+cart, checkout, bills, PDF receipts and reports all work in Expo Go — scanning does
+not. Use one of the builds above for the full app.
 
 ---
 

@@ -238,6 +238,14 @@ export function MoreScreen() {
         </Card>
       </Pressable>
 
+      <Spacer size={theme.spacing.lg} />
+
+      <View style={{ alignItems: 'center' }}>
+        <Txt variant="caption" color="muted" style={{ fontWeight: '600' }}>
+          QuickBill POS · Powered by Nexzoa
+        </Txt>
+      </View>
+
       <Spacer size={theme.spacing.xxl} />
     </Screen>
   );

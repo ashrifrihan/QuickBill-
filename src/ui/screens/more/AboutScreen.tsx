@@ -1,4 +1,5 @@
 import React from 'react';
+import { View } from 'react-native';
 import Constants from 'expo-constants';
 import { useTheme } from '../../hooks/useResponsive';
 import { Card, Divider, Row, Screen, Spacer, Txt } from '../../components/common';
@@ -35,6 +36,8 @@ export function AboutScreen() {
       <Card>
         {row('Version', version)}
         <Divider />
+        {row('Developer', 'Nexzoa')}
+        <Divider />
         {row('Storage', 'On-device SQLite')}
         <Divider />
         {row('Works offline', 'Always')}
@@ -59,9 +62,17 @@ export function AboutScreen() {
         <Spacer size={theme.spacing.sm} />
         <Txt variant="caption" color="muted">
           Expo · React Native · TypeScript · expo-sqlite · expo-camera · expo-print · React
-          Navigation · Zustand · Zod. All free and open source.
+          Navigation · Zustand · Zod. Developed &amp; Built by Nexzoa.
         </Txt>
       </Card>
+
+      <Spacer size={theme.spacing.lg} />
+
+      <View style={{ alignItems: 'center' }}>
+        <Txt variant="caption" color="muted" style={{ fontWeight: '600' }}>
+          QuickBill v{version} · Powered by Nexzoa
+        </Txt>
+      </View>
 
       <Spacer size={theme.spacing.xl} />
     </Screen>

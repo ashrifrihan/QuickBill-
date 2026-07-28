@@ -162,6 +162,11 @@ export function MoreScreen() {
           navigation.navigate('PrinterSettings'),
         )}
         <Divider />
+        {item('save-outline', 'Backup & restore', 'Export all data, or import from a backup file', () =>
+          navigation.navigate('Backup'),
+          true,
+        )}
+        <Divider />
         {item('information-circle-outline', 'About QuickBill', 'App version and architecture notes', () => navigation.navigate('About'))}
       </Card>
 

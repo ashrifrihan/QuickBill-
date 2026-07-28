@@ -6,6 +6,7 @@
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "description": "Offline POS & Billing System by Nexzoa",
     "ios": {
       "supportsTablet": true,
       "requireFullScreen": false,

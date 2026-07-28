@@ -23,6 +23,7 @@ import { BillHistoryScreen } from '../ui/screens/bills/BillHistoryScreen';
 import { MoreScreen } from '../ui/screens/more/MoreScreen';
 import { SettingsScreen } from '../ui/screens/more/SettingsScreen';
 import { PrinterSettingsScreen } from '../ui/screens/more/PrinterSettingsScreen';
+import { BackupScreen } from '../ui/screens/more/BackupScreen';
 import { AboutScreen } from '../ui/screens/more/AboutScreen';
 import type {
   BillsStackParamList,
@@ -58,6 +59,7 @@ const GuardedBillHistory = guarded(BillHistoryScreen, 'bill history');
 const GuardedMore = guarded(MoreScreen, 'more menu');
 const GuardedSettings = guarded(SettingsScreen, 'settings');
 const GuardedPrinterSettings = guarded(PrinterSettingsScreen, 'printer settings');
+const GuardedBackup = guarded(BackupScreen, 'backup');
 const GuardedAbout = guarded(AboutScreen, 'about');
 
 function useStackOptions() {
@@ -145,6 +147,11 @@ function MoreNavigator() {
         name="PrinterSettings"
         component={GuardedPrinterSettings}
         options={{ title: 'Printer' }}
+      />
+      <MoreStack.Screen
+        name="Backup"
+        component={GuardedBackup}
+        options={{ title: 'Backup & restore' }}
       />
       <MoreStack.Screen
         name="About"

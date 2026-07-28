@@ -9,8 +9,10 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
+  StatusBar as RNStatusBar,
   StyleProp,
   StyleSheet,
   Text,
@@ -20,7 +22,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { SafeAreaView, Edge } from 'react-native-safe-area-context';
+import { SafeAreaView, Edge, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../hooks/useResponsive';
 import { MIN_TOUCH_TARGET } from '../../config/constants';
@@ -32,7 +34,7 @@ export type IconName = React.ComponentProps<typeof Ionicons>['name'];
 // Layout & Bento Components
 // ---------------------------------------------------------------------------
 
-/** Screen shell: safe-area aware, so nothing hides under a notch. */
+/** Screen shell: safe-area aware, so nothing hides under a notch or Android status bar. */
 export function Screen({
   children,
   style,
@@ -47,6 +49,13 @@ export function Screen({
   contentStyle?: StyleProp<ViewStyle>;
 }) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const androidStatusBarHeight = Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 24) : 0;
+  const topInsetPadding = edges?.includes('top')
+    ? Math.max(insets.top, androidStatusBarHeight)
+    : 0;
+
   const body = scroll ? (
     <ScrollView
       style={styles.flex}
@@ -63,7 +72,14 @@ export function Screen({
   return (
     <SafeAreaView
       edges={edges}
-      style={[styles.flex, { backgroundColor: theme.colors.background }, style]}
+      style={[
+        styles.flex,
+        {
+          backgroundColor: theme.colors.background,
+          paddingTop: topInsetPadding,
+        },
+        style,
+      ]}
     >
       {body}
     </SafeAreaView>

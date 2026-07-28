@@ -1,6 +1,8 @@
 {
   "name": "quickbill",
   "version": "1.0.0",
+  "description": "QuickBill POS by Nexzoa",
+  "author": "Nexzoa",
   "main": "index.ts",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

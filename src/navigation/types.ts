@@ -26,6 +26,7 @@ export type MoreStackParamList = {
   MoreMenu: undefined;
   Settings: undefined;
   PrinterSettings: undefined;
+  Backup: undefined;
   About: undefined;
 };
 
